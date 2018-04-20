@@ -29,7 +29,7 @@ var basic_choropleth = new Datamap({
 });
 
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
-var colors = d3.scale.linear().domain([0, 1000000000]).range(['Gainsboro', 'red']);
+var colors = d3.scale.linear().domain([0, 100000000]).range(['Gainsboro', 'grey']);
 
 function colorMap(year) {
   for (var prop in population_data) {
@@ -46,7 +46,6 @@ function colorMap(year) {
 }
 
 function updateColor(country, population) {
-  console.log('Recoloring map...');
   var data = {}
   data[country] = colors(parseInt(population));
   // data[country] = colors(Math.log(parseInt(population)));
