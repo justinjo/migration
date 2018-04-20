@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Population - COMP 177</title>
+
+  <link rel="stylesheet" type="text/css" href="./css/style.css">
+  
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="http://d3js.org/topojson.v1.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <script src="./js/datamaps.world.lores.min.js"></script>
+</head>
+<body>
+  <div>
+    Hello world
+  </div>
+  <div id="map" style="position: relative; width: 80%; max-height: 800px;"></div>
+  <div>
+    <input type="range" min="1959" max="2016" value="1959" class="slider" id="slider">
+    <p>Current Year: <span id="curryear"></span></p>
+  </div>
+  <script src="./js/map.js"></script>
+</body>
