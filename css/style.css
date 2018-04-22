@@ -28,6 +28,13 @@
     cursor: pointer;
 }
 
-.world {
+/*#world {
   background-color: rgb(51,171,249);
+}*/
+
+#worldwrapper {
+  text-align: center;
+}
+#world {
+  display: inline-block;
 }

@@ -16,10 +16,13 @@ var FieldsEnum = {
 }
 Object.freeze(FieldsEnum);
 
+var MAX_POP = 100000000;
+Object.freeze(MAX_POP);
+
 var population_data = {};
 var arcs = [];
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
-var colors = d3.scale.linear().domain([0, 100000000]).range(['Gainsboro', '#9acd32']);
+var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#9acd32']);
 
 var slider = document.getElementById("slider");
 var curryear = document.getElementById("curryear");
@@ -56,6 +59,11 @@ function colorMap(year) {
     return;
   }
   for (var key in population_data[year]) {
+    var pop = parseInt(population_data[year][key].population);
+    pop = pop < MAX_POP ? pop : MAX_POP - 1;
+    // if (key == 'CHN') {
+    //   console.log(pop);
+    // }
     updateColor(
         key,
         population_data[year][key].population
@@ -76,7 +84,6 @@ function updateColor(country, population) {
 // Update the current slider value (each time you drag the slider handle)
 slider.oninput = function() {
   curryear.innerHTML = this.value;
-
   colorMap(this.value);
 }
 
@@ -96,16 +103,16 @@ function init() {
     projectionConfig: {
       rotation: globalRotation
     },
-    fills: {defaultFill: 'rgba(30,30,30,0.1)'},
+    fills: {defaultFill: '#9acd32'},
     // data: dataset,
     geographyConfig: {
       responsive: true,
-      borderColor: 'rgba(222,222,222,0.2)',
+      borderColor: 'rgba(50,50,50,0.2)',
       highlightBorderWidth: 1,
-      // don't change color on mouse hover
-      highlightFillColor: function(geo) {
-      return geo['fillColor'] || 'rgba(30,30,30,0.5)';
-      },
+        // don't change color on mouse hover
+      // highlightFillColor: function(geo) {
+      //   return geo['fillColor'] || 'rgba(30,30,30,0.5)';
+      // },
 
       // only change border
       highlightBorderColor: 'rgba(222,222,222,0.5)',
