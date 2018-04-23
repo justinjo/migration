@@ -1,12 +1,3 @@
-
-
-$.getJSON("./data/pop_by_year.json", function(data) {
-  population_data = data;
-  colorMap(1959);
-});
-
-
-
 /* -------- VARIABLES -------- */
 var FieldsEnum = {
   "Country": 0,
@@ -19,7 +10,11 @@ Object.freeze(FieldsEnum);
 var MAX_POP = 100000000;
 Object.freeze(MAX_POP);
 
+// json data
 var population_data = {};
+var migration_data = {};
+var grouping_data = {};
+
 var arcs = [];
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
 var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#9acd32']);
@@ -29,7 +24,27 @@ var curryear = document.getElementById("curryear");
 curryear.innerHTML = slider.value; // Display the default slider value
 
 var map;
-var globalRotation = [90,-30];
+var global_rotation = [90,-30];
+
+var current_country = 'USA';
+
+
+/*  -------- DATA LOADING -------- */
+$.getJSON("./data/pop_by_year.json", function(data) {
+  population_data = data;
+  console.log('Loaded population data.');
+  colorMap(1959);
+});
+
+$.getJSON("./data/migration.json", function(data) {
+  migration_data = data;
+  console.log('Loaded migration data.');
+});
+
+$.getJSON("./data/UN_groupings.json", function(data) {
+  grouping_data = data;
+  console.log('Loaded UN grouping data.');
+});
 
 
 /* -------- FUNCTIONS -------- */
@@ -81,6 +96,88 @@ function updateColor(country, population) {
 }
 
 
+function populateArcs(source, destinations) {
+  source = 'USA';
+  destinations = ['MEX', 'CHL', 'COL'];
+  var data = {
+    USA: {
+      lat: 38,
+      lon: -97,
+    },
+    MEX: {
+      lat: 23,
+      lon: -102,
+    },
+    CHL: {
+      lat: -30,
+      lon: -71,
+    },
+    COL: {
+      lat: 4,
+      lon: -72,
+    },
+  }
+  var arcs = [];
+  for (var dest in destinations) {
+    arcs.push(
+      { 
+        origin: {
+          latitude: data[source].lat,
+          longitude: data[source].lon,
+        },
+        destination: {
+          latitude: data[destinations[dest]].lat,
+          longitude: data[destinations[dest]].lon,
+        }
+      }
+    );
+  }
+  return arcs;
+}
+
+function populateBubbles(source, destinations) {
+  source = 'USA';
+  destinations = ['MEX', 'CHL', 'COL'];
+  var data = {
+    USA: {
+      lat: 38,
+      lon: -97,
+      pop: 20000,
+    },
+    MEX: {
+      lat: 23,
+      lon: -102,
+      pop: 100,
+    },
+    CHL: {
+      lat: -30,
+      lon: -71,
+      pop: 200,
+    },
+    COL: {
+      lat: 4,
+      lon: -72,
+      pop: 300,
+    },
+  }
+  var bubbles = [];
+  for (var dest in destinations) {
+    bubbles.push(makeBubble(data[destinations[dest]]));
+  }
+  return bubbles;
+}
+
+
+function makeBubble(entry) {
+  return {
+    latitude: entry.lat,
+    longitude: entry.lon,
+    population: entry.pop, 
+    radius: 20
+  }
+}
+
+
 // Update the current slider value (each time you drag the slider handle)
 slider.oninput = function() {
   curryear.innerHTML = this.value;
@@ -98,15 +195,16 @@ function init() {
 
   map = new Datamap({//need global var
     scope: 'world',
+    // responsive: true,
     element: document.getElementById('world'),
     projection: 'orthographic',
     projectionConfig: {
-      rotation: globalRotation
+      rotation: global_rotation
     },
     fills: {defaultFill: '#9acd32'},
     // data: dataset,
     geographyConfig: {
-      responsive: true,
+      hideAntarctica: 0,
       borderColor: 'rgba(50,50,50,0.2)',
       highlightBorderWidth: 1,
         // don't change color on mouse hover
@@ -136,27 +234,17 @@ function init() {
 
   map.graticule();
 
-  arcs.push(
-    { 
-      origin: {
-        latitude: 37,
-        longitude: -95
-      },
-      destination: {
-        latitude: -35,
-        longitude: -71
-      }
-    },
+  arcs = populateArcs();
+  map.bubbles(
+    populateBubbles(),
     {
-      origin: {
-        latitude: 37,
-        longitude: -95
-      },
-      destination: {
-        latitude: 24,
-        longitude: -102
-      },
-    },
+      popupTemplate: function(geo, data) {
+        console.log(geo);
+        console.log(data);
+        console.log('heh');
+        return "<div class='hoverinfo'>Population: " + data.population + "";
+      }
+    }
   );
 
 
@@ -191,7 +279,7 @@ function init() {
     if (rotation[1] < -90) rotation[1] = -90;
 
     if (rotation[0] >= 180) rotation[0] -= 360;
-      globalRotation = rotation;
+      global_rotation = rotation;
       redraw();
   });
 
