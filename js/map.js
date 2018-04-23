@@ -84,6 +84,7 @@ function colorMap(year) {
         population_data[year][key].population
       );
   }
+  // updateColor('ATA', 0);
 }
 
 
@@ -201,8 +202,13 @@ function init() {
     projectionConfig: {
       rotation: global_rotation
     },
-    fills: {defaultFill: '#9acd32'},
-    // data: dataset,
+    fills: {
+      defaultFill: '#9acd32',
+      ata: '#D3F5FF',
+    },
+    data: {
+      'ATA': { fillKey: 'ata' },
+    },
     geographyConfig: {
       hideAntarctica: 0,
       borderColor: 'rgba(50,50,50,0.2)',
@@ -239,9 +245,6 @@ function init() {
     populateBubbles(),
     {
       popupTemplate: function(geo, data) {
-        console.log(geo);
-        console.log(data);
-        console.log('heh');
         return "<div class='hoverinfo'>Population: " + data.population + "";
       }
     }
