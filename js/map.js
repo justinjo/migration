@@ -7,7 +7,7 @@ var FieldsEnum = {
 }
 Object.freeze(FieldsEnum);
 
-var MAX_POP = 100000000;
+var MAX_POP = 10000;
 Object.freeze(MAX_POP);
 
 // json data
@@ -24,6 +24,7 @@ var map;
 var global_rotation = [90,-30];
 
 var current_country = 'USA';
+var current_year = slider.value;
 
 
 // hacky hacky
@@ -36,7 +37,7 @@ $.getJSON("./data/pop_by_year.json", function(data) {
   population_data = data;
   console.log('Loaded population data.');
   pop_loaded = true;
-  colorMap(1959);
+  colorMap(current_country,  slider.value);
 });
 
 $.getJSON("./data/migration.json", function(data) {
@@ -121,7 +122,7 @@ function countryInMigData(iso) {
 /* ---- Rendering Functions ---- */
 
 function populateArcs(source) {
-  source = "USA";
+  source = current_country;
   // curryear - 1980
   var source_coords = getCoords(source);
   var dest_coords;
@@ -144,7 +145,7 @@ function populateArcs(source) {
       continue;
     }
     // TODO: put in thresholding here
-    if (mig_data[i].population_post_1980[slider.value - 1980] > 500) {
+    if (mig_data[i].population_post_1980[slider.value - 1980] > 5000) {
       arcs.push({
         origin: {
           latitude: source_coords.lat,
@@ -164,62 +165,60 @@ function renderArcs(arcs) {
   map.arc(arcs);
 }
 
-function populateBubbles(source, destinations) {
-  source = 'USA';
-  destinations = ['MEX', 'CHL', 'COL'];
-  var data = {
-    USA: {
-      lat: 38,
-      lon: -97,
-      pop: 20000,
-    },
-    MEX: {
-      lat: 23,
-      lon: -102,
-      pop: 100,
-    },
-    CHL: {
-      lat: -30,
-      lon: -71,
-      pop: 200,
-    },
-    COL: {
-      lat: 4,
-      lon: -72,
-      pop: 300,
-    },
-  }
-  var bubbles = [];
-  for (var dest in destinations) {
-    bubbles.push(makeBubble(data[destinations[dest]]));
-  }
-  return bubbles;
-}
+// function populateBubbles(source, destinations) {
+//   source = current_country;
+//   destinations = ['MEX', 'CHL', 'COL'];
+//   var data = {
+//     USA: {
+//       lat: 38,
+//       lon: -97,
+//       pop: 20000,
+//     },
+//     MEX: {
+//       lat: 23,
+//       lon: -102,
+//       pop: 100,
+//     },
+//     CHL: {
+//       lat: -30,
+//       lon: -71,
+//       pop: 200,
+//     },
+//     COL: {
+//       lat: 4,
+//       lon: -72,
+//       pop: 300,
+//     },
+//   }
+//   var bubbles = [];
+//   for (var dest in destinations) {
+//     bubbles.push(makeBubble(data[destinations[dest]]));
+//   }
+//   return bubbles;
+// }
 
 
-function makeBubble(entry) {
-  return {
-    latitude: entry.lat,
-    longitude: entry.lon,
-    population: entry.pop, 
-    radius: 20
-  }
-}
+// function makeBubble(entry) {
+//   return {
+//     latitude: entry.lat,
+//     longitude: entry.lon,
+//     population: entry.pop, 
+//     radius: 20
+//   }
+// }
 
-function colorMap(year) {
-  // if (!(year in population_data)) {
-  //   return;
-  // }
-  // for (var key in population_data[year]) {
-  //   var pop = parseInt(population_data[year][key].population);
-  //   pop = pop < MAX_POP ? pop : MAX_POP - 1;
-  //   if (population_data[year][key].population) {
-  //     updateColor(
-  //       key,
-  //       population_data[year][key].population.toString()
-  //     );
-  //   }
-  // }
+function colorMap(source, year) {
+  if (!countryInMigData(source)) {
+    console.log('Error: ' + source + ' not found in migration dataset');
+    return;
+  }
+
+  var mig_data = getImmigrationData(source);
+
+  for (var i=0; i<mig_data.length; i++) {
+    var population = mig_data[i].population_post_1980[year - 1980];
+    updateColor(mig_data[i].ISOa3, population); //.toString()?
+  }
 }
 
 
@@ -228,7 +227,7 @@ function updateColor(country, population) {
   data[country] = colors(parseInt(population));
   // data[country] = colors(Math.log(parseInt(population)));
   if (country == 'CHN') {
-    console.log(Math.log(parseInt(population)));
+    console.log(parseInt(population));
     console.log(colors(parseInt(population)));
   }
   map.updateChoropleth(data);
@@ -238,7 +237,7 @@ function updateColor(country, population) {
 function redraw() {
   d3.select("#world").html('');
   init();
-  colorMap(curryear.innerHTML);
+  colorMap(current_country,  slider.value);
 }// redraw
 
 
@@ -280,7 +279,7 @@ function init() {
     },
     arcConfig: {
       strokeColor: '#DD1C77',
-      strokeWidth: 1,
+      strokeWidth: 2,
       arcSharpness: 1,
       animationSpeed: 600,
       greatArc: true,
@@ -306,7 +305,8 @@ slider.oninput = function() {
   curryear.innerHTML = this.value;
   // redraw();
   renderArcs(populateArcs());
-  // colorMap(this.value);
+  colorMap(current_country,  slider.value);
+  current_year = slider.value;
 }
 
 
