@@ -11,9 +11,7 @@ var MAX_POP = 100000000;
 Object.freeze(MAX_POP);
 
 // json data
-var population_data = {};
-var migration_data = {};
-var grouping_data = {};
+var population_data = [], migration_data = [], grouping_data = [], region_data = [];
 
 var arcs = [];
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
@@ -30,7 +28,7 @@ var current_country = 'USA';
 
 
 // hacky hacky
-var pop_loaded = false, mig_loaded = false, group_loaded = false;
+var pop_loaded = false, mig_loaded = false, group_loaded = false, reg_loaded = false;
 
 
 /*  -------- DATA LOADING -------- */
@@ -43,10 +41,15 @@ $.getJSON("./data/pop_by_year.json", function(data) {
 
 $.getJSON("./data/migration.json", function(data) {
   migration_data = data;
-  // console.log(data);
   console.log('Loaded migration data.');
   mig_loaded = true;
 });
+
+$.getJSON("./data/regions.json", function(data) {
+  region_data = data;
+  console.log('Loaded region data.');
+  reg_loaded = true;
+})
 
 $.getJSON("./data/UN_groupings.json", function(data) {
   grouping_data = data;
@@ -58,6 +61,136 @@ $.getJSON("./data/UN_groupings.json", function(data) {
 
 
 /* -------- FUNCTIONS -------- */
+
+
+var jsn = document.getElementById("json");
+  
+function pls_mig() {
+  // time to arrange:
+  if (!mig_loaded || !group_loaded) {
+    return;
+  }
+
+  var new_data = [];
+
+  for (var i=0; i<migration_data.length; i++) {
+    var immigration = [];
+    var emigration = [];
+
+    for (var j=0; j<migration_data[i].immigration.length; j++) {
+      if (!migration_data[i].immigration[j].name) {
+        console.log(migration_data[i].immigration[j].name);
+        return;
+      }
+      var name = migration_data[i].immigration[j].name;
+      var iso = getISOOfCountry(name);
+      var years_since = migration_data[i].immigration[j].yearsSince1980;
+      if (!iso) {
+        if (name =='TfYR of Macedonia' || name == 'The former Yugoslav Republic of Macedonia') {
+          iso = 'MKD';
+          name = 'The former Yugoslav Republic of Macedonia';
+        } else if (name =='Czech Republic') {
+          iso = 'CZE';
+        } else if (name =='United Kingdom') {
+          iso = 'GBR';
+        }
+      }
+      var point = {
+        'ISOa3': iso,
+        'country_name': name,
+        'population_post_1980': years_since,
+      };
+      immigration.push(point);
+    }
+
+    for (var j=0; j<migration_data[i].emigration.length; j++) {
+      if (!migration_data[i].emigration[j].name) {
+        console.log(migration_data[i].emigration[j].name);
+        return;
+      }
+      var name = migration_data[i].emigration[j].name;
+      var iso = getISOOfCountry(name);
+      var years_since = migration_data[i].emigration[j].yearsSince1980;
+      if (!iso) {
+        if (name =='TfYR of Macedonia' || name == 'The former Yugoslav Republic of Macedonia') {
+          iso = 'MKD';
+          name = 'The former Yugoslav Republic of Macedonia';
+        } else if (name =='Czech Republic') {
+          iso = 'CZE';
+        } else if (name =='United Kingdom') {
+          iso = 'GBR';
+        }
+      }
+      var point = {
+        'ISOa3': iso,
+        'country_name': name,
+        'population_post_1980': years_since,
+      };
+      emigration.push(point);
+    }
+
+    var name = migration_data[i].name;
+    var iso = getISOOfCountry(name);
+    if (!iso) {
+      if (name =='TfYR of Macedonia' || name == 'The former Yugoslav Republic of Macedonia') {
+        iso = 'MKD';
+        name = 'The former Yugoslav Republic of Macedonia';
+      } else if (name =='Czech Republic') {
+        iso = 'CZE';
+      } else if (name =='United Kingdom') {
+        iso = 'GBR';
+      }
+    }
+
+    var point = {
+      'ISOa3': iso,
+      'country_name': name,
+      'immigration': immigration,
+      'emigration': emigration,
+    };
+
+    new_data.push(point);
+  }
+
+  jsn.innerHTML = JSON.stringify(new_data);
+  console.log('wrote json');
+}
+
+function pls_group() {
+  if (!group_loaded) {
+    return;
+  }
+
+  var new_data = [];
+
+  for (var i=0; i<grouping_data.length; i++) {
+    var point = {
+      'ISOa3': grouping_data[i]["ISO-alpha3 Code"],
+      'country_name': grouping_data[i]["Country or Area"],
+      'intermediate_region_code': grouping_data[i]["Intermediate Region Code"].toString(),
+      'intermediate_region_name': grouping_data[i]["Intermediate Region Name"],
+      'subregion_code': grouping_data[i]["Sub-region Code"].toString(),
+      'subregion_name': grouping_data[i]["Sub-region Name"],
+      'region_code': grouping_data[i]["Region Code"].toString(),
+      'region_name': grouping_data[i]["Region Name"],
+      'global_code': "001",
+      'global_name': 'World',
+      'latitude': cleanCoord(grouping_data[i]["lat"]),
+      'longitude': cleanCoord(grouping_data[i]["lng"]),
+    };
+
+    new_data.push(point);
+  }
+
+  jsn.innerHTML = JSON.stringify(new_data);
+  console.log('wrote json');
+}
+
+function cleanCoord(coord) {
+  return coord != null ? coord.toString() : "0";
+}
+
+
 
 function colorMap(year) {
   if (!(year in population_data)) {
@@ -73,7 +206,6 @@ function colorMap(year) {
       );
     }
   }
-  // updateColor('ATA', 0);
 }
 
 
@@ -88,62 +220,68 @@ function updateColor(country, population) {
   map.updateChoropleth(data);
 }
 
-function getCoords(country_name) {
-  var coords = {};
-  var country = getISOOfCountry(country_name);
-  for (var key in grouping_data) {
-    // console.log(grouping_data[key]);
-    if (grouping_data[key]['ISO-alpha3 Code'] == country) {
-      coords.lat = grouping_data[key].lat;
-      coords.lon = grouping_data[key].lng;
-      return coords;
+
+
+
+
+/* ---- Grouping Functions ---- */
+
+function getISOOfCountry(country) {
+  for (var i=0; i<region_data.length; i++) {
+    if (country == region_data[i].country_name) {
+      return region_data[i].ISOa3;
     }
   }
-  // return grouping_data[]
+  console.log('Could not get ISO of ' + country);
+}
+
+function getCoords(iso) {
+  for (var i=0; i<region_data.length; i++) {
+    if (region_data[i].ISOa3 == iso) {
+      return {
+        lat: region_data[i].latitude,
+        lon: region_data[i].longitude,
+      }
+    }
+  }
   return null;
 }
 
-function getISOOfCountry(country_name) {
-  for (var key in grouping_data) {
-    if (country_name == grouping_data[key]['Country or Area']) {
-      return grouping_data[key]['ISO-alpha3 Code'];
+
+/* ---- Migration Functions ---- */
+
+function getMigrationEntry(iso) {
+  for (var i=0; i<migration_data.length; i++) {
+    if (migration_data[i].ISOa3 == iso) {
+      return migration_data[i];
     }
   }
+  return null;
 }
 
-function countryInMigData(country_name) {
-  for (var key in migration_data) {
-    // console.log(migration_data[key]);
-    if (migration_data[key].name == country_name) {
-      return true;
-    }
-  }
-  return false;
+function getImmigrationData(iso) {
+  var entry = getMigrationEntry(iso);
+  return entry ? entry.immigration : null;
+}
+
+function getEmigrationData(iso) {
+  var entry = getMigrationEntry(iso);
+  return entry ? entry.emigration : null;
+}
+
+function countryInMigData(iso) {
+  return Boolean(getMigrationEntry(iso));
 }
 
 
-function getImmigrationData(country_name) {
-  for (var key in migration_data) {
-    // console.log(migration_data[key]);
-    if (migration_data[key].name == country_name) {
-      return migration_data[key].immigration;
-    }
-  }
-}
-
-function getEmigrationData(country_name) {
-
-}
-
+/* ---- other ---- */
 
 function populateArcs(source, destinations) {
-  source = "United States of America";
+  source = "AUS";
   // curryear - 1980
-  // immigration first  
-  // destinations = ['MEX', 'CHL', 'COL'];
   var data = {};
   var source_coords = getCoords(source);
-  // console.log(source_coords);
+  console.log(source_coords);
 
   if (!countryInMigData(source)) {
     console.log(source + ' not found in migration dataset');
@@ -151,12 +289,14 @@ function populateArcs(source, destinations) {
   }
 
   var mig_data = getImmigrationData(source);
-  // console.log(mig_data);
-  for (var key in mig_data) {
-    if (!getCoords(mig_data[key].name)) {
+
+  for (var i=0; i<mig_data.length; i++) {
+    if (!getCoords(mig_data[i].ISOa3)) {
+      console.log('failed to get coords');
+      console.log(mig_data[i].ISOa3);
       continue;
     }
-    data[getISOOfCountry(mig_data[key].name)] = getCoords(mig_data[key].name);
+    data[mig_data[i].ISOa3] = getCoords(mig_data[i].ISOa3);
   }
 
   // for (var key in migration_data) {
@@ -186,7 +326,7 @@ function populateArcs(source, destinations) {
       }
     );
   }
-  console.log(arcs);
+  // console.log(arcs);
   return arcs;
 }
 
@@ -232,12 +372,6 @@ function makeBubble(entry) {
   }
 }
 
-
-// Update the current slider value (each time you drag the slider handle)
-slider.oninput = function() {
-  curryear.innerHTML = this.value;
-  colorMap(this.value);
-}
 
 
 function redraw() {
@@ -301,12 +435,6 @@ function init() {
       animationSpeed: 0
     }
   );
-
-  // map.svg.selectAll('path.datamaps-arc')
-  //   .transition()
-  //   .delay(function (d) { return 50 * 20; })
-  //   .duration(800)
-  //   .remove();
 }// init
 
 
@@ -318,5 +446,18 @@ $( "html" ).click(function() {
   redraw();
 });
 
-// redraw();
+$('body').keyup(function(e){
+  if(e.keyCode == 32){
+    pls_group();
+  }
+});
+
+
+// Update the current slider value (each time you drag the slider handle)
+slider.oninput = function() {
+  curryear.innerHTML = this.value;
+  colorMap(this.value);
+}
+
+
               
