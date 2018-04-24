@@ -13,7 +13,6 @@ Object.freeze(MAX_POP);
 // json data
 var population_data = [], migration_data = [], grouping_data = [], region_data = [];
 
-var arcs = [];
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
 var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#9acd32']);
 
@@ -122,12 +121,11 @@ function countryInMigData(iso) {
 /* ---- Rendering Functions ---- */
 
 function populateArcs(source) {
-  console.log('Populating arc array');
-  console.log(slider.value - 1980);
-  source = "DEU";
+  source = "USA";
   // curryear - 1980
-  var data = {};
   var source_coords = getCoords(source);
+  var dest_coords;
+  var arcs = [];
 
   if (!source_coords) {
     console.log('Error: ' + source + ' does not have coordinates');
@@ -138,40 +136,32 @@ function populateArcs(source) {
     return;
   }
 
-  var mig_data = getEmigrationData(source);
+  var mig_data = getImmigrationData(source);
   for (var i=0; i<mig_data.length; i++) {
-    if (!getCoords(mig_data[i].ISOa3)) {
-      console.log('failed to get coords');
-      console.log(mig_data[i]);
+    dest_coords = getCoords(mig_data[i].ISOa3);
+    if (!dest_coords) {
+      console.log('Failed to get coords for ' + mig_data[i].ISOa3);
       continue;
     }
-    if (mig_data[i].population_post_1980[slider.value - 1980] > 200) {
-      // console.log(mig_data[i].ISOa3)
-      data[mig_data[i].ISOa3] = getCoords(mig_data[i].ISOa3);
-    }
-  }
-
-  var arcs = [];
-  for (var iso in data) {
-    if (!data[iso].lat || !data[iso].lon) {
-      console.log('Null Island found with ISO code: ' + iso);
-      continue;
-    }
-    arcs.push(
-      { 
+    // TODO: put in thresholding here
+    if (mig_data[i].population_post_1980[slider.value - 1980] > 500) {
+      arcs.push({
         origin: {
           latitude: source_coords.lat,
           longitude: source_coords.lon,
         },
         destination: {
-          latitude: data[iso].lat,
-          longitude: data[iso].lon,
+          latitude: dest_coords.lat,
+          longitude: dest_coords.lon,
         }
-      }
-    );
+      });
+    }
   }
-  console.log('Populated arc array');
   return arcs;
+}
+
+function renderArcs(arcs) {
+  map.arc(arcs);
 }
 
 function populateBubbles(source, destinations) {
@@ -287,10 +277,16 @@ function init() {
       //     ': ',
       //   ''].join('');        
       // }
-    }
+    },
+    arcConfig: {
+      strokeColor: '#DD1C77',
+      strokeWidth: 1,
+      arcSharpness: 1,
+      animationSpeed: 600,
+      greatArc: true,
+    },
   });
 
-  arcs = populateArcs();
   // map.bubbles(
   //   populateBubbles(),
   //   {
@@ -300,40 +296,21 @@ function init() {
   //   }
   // );
 
+  renderArcs(populateArcs());
 
-  map.arc(arcs,
-    {
-      greatArc: true,
-      animationSpeed: 0
-    }
-  );
 }// init
-
-
-function dataLoaded() {
-  return pop_loaded && mig_loaded && group_loaded;
-}
-
-$( "html" ).click(function() {
-  redraw();
-});
-
-// $('body').keyup(function(e){
-//   if(e.keyCode == 32){
-//     pls_group();
-//   }
-// });
 
 
 // Update the current slider value (each time you drag the slider handle)
 slider.oninput = function() {
   curryear.innerHTML = this.value;
-  redraw();
+  // redraw();
+  renderArcs(populateArcs());
   // colorMap(this.value);
 }
 
 
-/* ---- data wrangling functions ---- */
+/* ---- Data Wrangling Functions ---- */
 
 var jsn = document.getElementById("json");
   
