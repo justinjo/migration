@@ -32,6 +32,7 @@ var pop_loaded = false, mig_loaded = false, group_loaded = false, reg_loaded = f
 
 
 /*  -------- DATA LOADING -------- */
+
 $.getJSON("./data/pop_by_year.json", function(data) {
   population_data = data;
   console.log('Loaded population data.');
@@ -43,25 +44,296 @@ $.getJSON("./data/migration.json", function(data) {
   migration_data = data;
   console.log('Loaded migration data.');
   mig_loaded = true;
+  if (reg_loaded) {
+    redraw();
+  }
 });
 
 $.getJSON("./data/regions.json", function(data) {
   region_data = data;
   console.log('Loaded region data.');
   reg_loaded = true;
+  if (mig_loaded) {
+    redraw();
+  }
 })
 
-$.getJSON("./data/UN_groupings.json", function(data) {
-  grouping_data = data;
-  console.log('Loaded UN grouping data.');
-  group_loaded = true;
-  // populateArcs();
-  redraw();
-});
+// $.getJSON("./data/UN_groupings.json", function(data) {
+//   grouping_data = data;
+//   console.log('Loaded UN grouping data.');
+//   group_loaded = true;
+//   // populateArcs();
+//   redraw();
+// });
 
 
 /* -------- FUNCTIONS -------- */
 
+/* ---- Grouping Functions ---- */
+
+function getISOOfCountry(country) {
+  for (var i=0; i<region_data.length; i++) {
+    if (country == region_data[i].country_name) {
+      return region_data[i].ISOa3;
+    }
+  }
+  console.log('Could not get ISO of ' + country);
+}
+
+function getCoords(iso) {
+  for (var i=0; i<region_data.length; i++) {
+    if (region_data[i].ISOa3 == iso) {
+      return {
+        lat: region_data[i].latitude,
+        lon: region_data[i].longitude,
+      }
+    }
+  }
+  return null;
+}
+
+
+/* ---- Migration Functions ---- */
+
+function getMigrationEntry(iso) {
+  for (var i=0; i<migration_data.length; i++) {
+    if (migration_data[i].ISOa3 == iso) {
+      return migration_data[i];
+    }
+  }
+  return null;
+}
+
+function getImmigrationData(iso) {
+  var entry = getMigrationEntry(iso);
+  return entry ? entry.immigration : null;
+}
+
+function getEmigrationData(iso) {
+  var entry = getMigrationEntry(iso);
+  return entry ? entry.emigration : null;
+}
+
+function countryInMigData(iso) {
+  return Boolean(getMigrationEntry(iso));
+}
+
+
+/* ---- Rendering Functions ---- */
+
+function populateArcs(source) {
+  console.log('Populating arc array');
+  console.log(slider.value - 1980);
+  source = "DEU";
+  // curryear - 1980
+  var data = {};
+  var source_coords = getCoords(source);
+
+  if (!source_coords) {
+    console.log('Error: ' + source + ' does not have coordinates');
+    return;
+  }
+  if (!countryInMigData(source)) {
+    console.log('Error: ' + source + ' not found in migration dataset');
+    return;
+  }
+
+  var mig_data = getEmigrationData(source);
+  for (var i=0; i<mig_data.length; i++) {
+    if (!getCoords(mig_data[i].ISOa3)) {
+      console.log('failed to get coords');
+      console.log(mig_data[i]);
+      continue;
+    }
+    if (mig_data[i].population_post_1980[slider.value - 1980] > 200) {
+      // console.log(mig_data[i].ISOa3)
+      data[mig_data[i].ISOa3] = getCoords(mig_data[i].ISOa3);
+    }
+  }
+
+  var arcs = [];
+  for (var iso in data) {
+    if (!data[iso].lat || !data[iso].lon) {
+      console.log('Null Island found with ISO code: ' + iso);
+      continue;
+    }
+    arcs.push(
+      { 
+        origin: {
+          latitude: source_coords.lat,
+          longitude: source_coords.lon,
+        },
+        destination: {
+          latitude: data[iso].lat,
+          longitude: data[iso].lon,
+        }
+      }
+    );
+  }
+  console.log('Populated arc array');
+  return arcs;
+}
+
+function populateBubbles(source, destinations) {
+  source = 'USA';
+  destinations = ['MEX', 'CHL', 'COL'];
+  var data = {
+    USA: {
+      lat: 38,
+      lon: -97,
+      pop: 20000,
+    },
+    MEX: {
+      lat: 23,
+      lon: -102,
+      pop: 100,
+    },
+    CHL: {
+      lat: -30,
+      lon: -71,
+      pop: 200,
+    },
+    COL: {
+      lat: 4,
+      lon: -72,
+      pop: 300,
+    },
+  }
+  var bubbles = [];
+  for (var dest in destinations) {
+    bubbles.push(makeBubble(data[destinations[dest]]));
+  }
+  return bubbles;
+}
+
+
+function makeBubble(entry) {
+  return {
+    latitude: entry.lat,
+    longitude: entry.lon,
+    population: entry.pop, 
+    radius: 20
+  }
+}
+
+function colorMap(year) {
+  // if (!(year in population_data)) {
+  //   return;
+  // }
+  // for (var key in population_data[year]) {
+  //   var pop = parseInt(population_data[year][key].population);
+  //   pop = pop < MAX_POP ? pop : MAX_POP - 1;
+  //   if (population_data[year][key].population) {
+  //     updateColor(
+  //       key,
+  //       population_data[year][key].population.toString()
+  //     );
+  //   }
+  // }
+}
+
+
+function updateColor(country, population) {
+  var data = {}
+  data[country] = colors(parseInt(population));
+  // data[country] = colors(Math.log(parseInt(population)));
+  if (country == 'CHN') {
+    console.log(Math.log(parseInt(population)));
+    console.log(colors(parseInt(population)));
+  }
+  map.updateChoropleth(data);
+}
+
+
+function redraw() {
+  d3.select("#world").html('');
+  init();
+  colorMap(curryear.innerHTML);
+}// redraw
+
+
+function init() {
+  map = new Datamap({//need global var
+    scope: 'world',
+    // responsive: true,
+    element: document.getElementById('world'),
+    projection: 'mercator',
+    fills: {
+      defaultFill: '#9acd32',
+      ata: '#D3F5FF',
+    },
+    data: {
+      'ATA': { fillKey: 'ata' },
+    },
+    geographyConfig: {
+      hideAntarctica: 0,
+      borderColor: 'rgba(50,50,50,0.2)',
+      highlightBorderWidth: 1,
+        // don't change color on mouse hover
+      highlightFillColor: function(geo) {
+        return geo['fillColor'] || 'rgba(30,30,30,0.5)';
+      },
+
+      // only change border
+      highlightBorderColor: 'rgba(222,222,222,0.5)',
+
+      // show desired information in tooltip
+      // popupTemplate: function(geo, data) {
+      //   // don't show tooltip if country don't present in dataset
+      //   // if (!data) { return ; }
+      //   // tooltip content
+      //   return ['',
+      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ',
+      //     ': ',
+      //   ''].join('');        
+      // }
+    }
+  });
+
+  arcs = populateArcs();
+  // map.bubbles(
+  //   populateBubbles(),
+  //   {
+  //     popupTemplate: function(geo, data) {
+  //       return "<div class='hoverinfo'>Population: " + data.population + "";
+  //     }
+  //   }
+  // );
+
+
+  map.arc(arcs,
+    {
+      greatArc: true,
+      animationSpeed: 0
+    }
+  );
+}// init
+
+
+function dataLoaded() {
+  return pop_loaded && mig_loaded && group_loaded;
+}
+
+$( "html" ).click(function() {
+  redraw();
+});
+
+// $('body').keyup(function(e){
+//   if(e.keyCode == 32){
+//     pls_group();
+//   }
+// });
+
+
+// Update the current slider value (each time you drag the slider handle)
+slider.oninput = function() {
+  curryear.innerHTML = this.value;
+  redraw();
+  // colorMap(this.value);
+}
+
+
+/* ---- data wrangling functions ---- */
 
 var jsn = document.getElementById("json");
   
@@ -192,272 +464,6 @@ function cleanCoord(coord) {
 
 
 
-function colorMap(year) {
-  if (!(year in population_data)) {
-    return;
-  }
-  for (var key in population_data[year]) {
-    var pop = parseInt(population_data[year][key].population);
-    pop = pop < MAX_POP ? pop : MAX_POP - 1;
-    if (population_data[year][key].population) {
-      updateColor(
-        key,
-        population_data[year][key].population.toString()
-      );
-    }
-  }
-}
-
-
-function updateColor(country, population) {
-  var data = {}
-  data[country] = colors(parseInt(population));
-  // data[country] = colors(Math.log(parseInt(population)));
-  if (country == 'CHN') {
-    console.log(Math.log(parseInt(population)));
-    console.log(colors(parseInt(population)));
-  }
-  map.updateChoropleth(data);
-}
-
-
-
-
-
-/* ---- Grouping Functions ---- */
-
-function getISOOfCountry(country) {
-  for (var i=0; i<region_data.length; i++) {
-    if (country == region_data[i].country_name) {
-      return region_data[i].ISOa3;
-    }
-  }
-  console.log('Could not get ISO of ' + country);
-}
-
-function getCoords(iso) {
-  for (var i=0; i<region_data.length; i++) {
-    if (region_data[i].ISOa3 == iso) {
-      return {
-        lat: region_data[i].latitude,
-        lon: region_data[i].longitude,
-      }
-    }
-  }
-  return null;
-}
-
-
-/* ---- Migration Functions ---- */
-
-function getMigrationEntry(iso) {
-  for (var i=0; i<migration_data.length; i++) {
-    if (migration_data[i].ISOa3 == iso) {
-      return migration_data[i];
-    }
-  }
-  return null;
-}
-
-function getImmigrationData(iso) {
-  var entry = getMigrationEntry(iso);
-  return entry ? entry.immigration : null;
-}
-
-function getEmigrationData(iso) {
-  var entry = getMigrationEntry(iso);
-  return entry ? entry.emigration : null;
-}
-
-function countryInMigData(iso) {
-  return Boolean(getMigrationEntry(iso));
-}
-
-
-/* ---- other ---- */
-
-function populateArcs(source, destinations) {
-  source = "AUS";
-  // curryear - 1980
-  var data = {};
-  var source_coords = getCoords(source);
-  console.log(source_coords);
-
-  if (!countryInMigData(source)) {
-    console.log(source + ' not found in migration dataset');
-    return; //error
-  }
-
-  var mig_data = getImmigrationData(source);
-
-  for (var i=0; i<mig_data.length; i++) {
-    if (!getCoords(mig_data[i].ISOa3)) {
-      console.log('failed to get coords');
-      console.log(mig_data[i].ISOa3);
-      continue;
-    }
-    data[mig_data[i].ISOa3] = getCoords(mig_data[i].ISOa3);
-  }
-
-  // for (var key in migration_data) {
-  //   if (migration_data[key])
-  //   data[migration_data[key]] = getCoords(destinations[key]);
-  // }
-  var arcs = [];
-  for (var d in data) {
-    // console.log(data);
-    // console.log(data[d]);
-    // console.log(d);
-    if (!data[d].lat || !data[d].lon) {
-      console.log('Null Island');
-      console.log(d);
-      continue;
-    }
-    arcs.push(
-      { 
-        origin: {
-          latitude: source_coords.lat,
-          longitude: source_coords.lon,
-        },
-        destination: {
-          latitude: data[d].lat,
-          longitude: data[d].lon,
-        }
-      }
-    );
-  }
-  // console.log(arcs);
-  return arcs;
-}
-
-function populateBubbles(source, destinations) {
-  source = 'USA';
-  destinations = ['MEX', 'CHL', 'COL'];
-  var data = {
-    USA: {
-      lat: 38,
-      lon: -97,
-      pop: 20000,
-    },
-    MEX: {
-      lat: 23,
-      lon: -102,
-      pop: 100,
-    },
-    CHL: {
-      lat: -30,
-      lon: -71,
-      pop: 200,
-    },
-    COL: {
-      lat: 4,
-      lon: -72,
-      pop: 300,
-    },
-  }
-  var bubbles = [];
-  for (var dest in destinations) {
-    bubbles.push(makeBubble(data[destinations[dest]]));
-  }
-  return bubbles;
-}
-
-
-function makeBubble(entry) {
-  return {
-    latitude: entry.lat,
-    longitude: entry.lon,
-    population: entry.pop, 
-    radius: 20
-  }
-}
-
-
-
-function redraw() {
-  d3.select("#world").html('');
-  init();
-  colorMap(curryear.innerHTML);
-}// redraw
-
-function init() {
-  map = new Datamap({//need global var
-    scope: 'world',
-    // responsive: true,
-    element: document.getElementById('world'),
-    projection: 'mercator',
-    fills: {
-      defaultFill: '#9acd32',
-      ata: '#D3F5FF',
-    },
-    data: {
-      'ATA': { fillKey: 'ata' },
-    },
-    geographyConfig: {
-      hideAntarctica: 0,
-      borderColor: 'rgba(50,50,50,0.2)',
-      highlightBorderWidth: 1,
-        // don't change color on mouse hover
-      highlightFillColor: function(geo) {
-        return geo['fillColor'] || 'rgba(30,30,30,0.5)';
-      },
-
-      // only change border
-      highlightBorderColor: 'rgba(222,222,222,0.5)',
-
-      // show desired information in tooltip
-      // popupTemplate: function(geo, data) {
-      //   // don't show tooltip if country don't present in dataset
-      //   // if (!data) { return ; }
-      //   // tooltip content
-      //   return ['',
-      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ',
-      //     ': ',
-      //   ''].join('');        
-      // }
-    }
-  });
-
-  arcs = populateArcs();
-  // map.bubbles(
-  //   populateBubbles(),
-  //   {
-  //     popupTemplate: function(geo, data) {
-  //       return "<div class='hoverinfo'>Population: " + data.population + "";
-  //     }
-  //   }
-  // );
-
-
-  map.arc(arcs,
-    {
-      greatArc: true,
-      animationSpeed: 0
-    }
-  );
-}// init
-
-
-function dataLoaded() {
-  return pop_loaded && mig_loaded && group_loaded;
-}
-
-$( "html" ).click(function() {
-  redraw();
-});
-
-$('body').keyup(function(e){
-  if(e.keyCode == 32){
-    pls_group();
-  }
-});
-
-
-// Update the current slider value (each time you drag the slider handle)
-slider.oninput = function() {
-  curryear.innerHTML = this.value;
-  colorMap(this.value);
-}
 
 
               

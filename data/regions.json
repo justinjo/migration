@@ -1764,6 +1764,20 @@
     "longitude": "113.55"
   },
   {
+    "ISOa3": "TWN",
+    "country_name": "China, Taiwan Province of China",
+    "intermediate_region_code": "",
+    "intermediate_region_name": "",
+    "subregion_code": "030",
+    "subregion_name": "Eastern Asia",
+    "region_code": "142",
+    "region_name": "Asia",
+    "global_code": "001",
+    "global_name": "World",
+    "latitude": "23.6978",
+    "longitude": "120.9605"
+  },
+  {
     "ISOa3": "PRK",
     "country_name": "Democratic People's Republic of Korea",
     "intermediate_region_code": "",
