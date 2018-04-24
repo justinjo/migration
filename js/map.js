@@ -29,45 +29,35 @@ var global_rotation = [90,-30];
 var current_country = 'USA';
 
 
+// hacky hacky
+var pop_loaded = false, mig_loaded = false, group_loaded = false;
+
+
 /*  -------- DATA LOADING -------- */
 $.getJSON("./data/pop_by_year.json", function(data) {
   population_data = data;
   console.log('Loaded population data.');
+  pop_loaded = true;
   colorMap(1959);
 });
 
 $.getJSON("./data/migration.json", function(data) {
   migration_data = data;
+  // console.log(data);
   console.log('Loaded migration data.');
+  mig_loaded = true;
 });
 
 $.getJSON("./data/UN_groupings.json", function(data) {
   grouping_data = data;
   console.log('Loaded UN grouping data.');
+  group_loaded = true;
+  // populateArcs();
+  redraw();
 });
 
 
 /* -------- FUNCTIONS -------- */
-
-function formatData(data) {
-  var formattedData = {};
-  for (var prop in population_data) {
-    var year = population_data[prop].field[FieldsEnum.Year].__text;
-    var key = population_data[prop].field[FieldsEnum.Country]._key;
-    var pop = population_data[prop].field[FieldsEnum.Value].__text;
-    var name = population_data[prop].field[FieldsEnum.Country].__text;
-
-    if (!(year in formattedData)) {
-      formattedData[year] = {};
-    }
-    formattedData[year][key] = {
-      name: name,
-      population: pop,
-    }
-  }
-  return formattedData;
-}
-
 
 function colorMap(year) {
   if (!(year in population_data)) {
@@ -76,13 +66,12 @@ function colorMap(year) {
   for (var key in population_data[year]) {
     var pop = parseInt(population_data[year][key].population);
     pop = pop < MAX_POP ? pop : MAX_POP - 1;
-    // if (key == 'CHN') {
-    //   console.log(pop);
-    // }
-    updateColor(
+    if (population_data[year][key].population) {
+      updateColor(
         key,
-        population_data[year][key].population
+        population_data[year][key].population.toString()
       );
+    }
   }
   // updateColor('ATA', 0);
 }
@@ -92,47 +81,112 @@ function updateColor(country, population) {
   var data = {}
   data[country] = colors(parseInt(population));
   // data[country] = colors(Math.log(parseInt(population)));
-  // console.log(Math.log(parseInt(population)));
+  if (country == 'CHN') {
+    console.log(Math.log(parseInt(population)));
+    console.log(colors(parseInt(population)));
+  }
   map.updateChoropleth(data);
+}
+
+function getCoords(country_name) {
+  var coords = {};
+  var country = getISOOfCountry(country_name);
+  for (var key in grouping_data) {
+    // console.log(grouping_data[key]);
+    if (grouping_data[key]['ISO-alpha3 Code'] == country) {
+      coords.lat = grouping_data[key].lat;
+      coords.lon = grouping_data[key].lng;
+      return coords;
+    }
+  }
+  // return grouping_data[]
+  return null;
+}
+
+function getISOOfCountry(country_name) {
+  for (var key in grouping_data) {
+    if (country_name == grouping_data[key]['Country or Area']) {
+      return grouping_data[key]['ISO-alpha3 Code'];
+    }
+  }
+}
+
+function countryInMigData(country_name) {
+  for (var key in migration_data) {
+    // console.log(migration_data[key]);
+    if (migration_data[key].name == country_name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+function getImmigrationData(country_name) {
+  for (var key in migration_data) {
+    // console.log(migration_data[key]);
+    if (migration_data[key].name == country_name) {
+      return migration_data[key].immigration;
+    }
+  }
+}
+
+function getEmigrationData(country_name) {
+
 }
 
 
 function populateArcs(source, destinations) {
-  source = 'USA';
-  destinations = ['MEX', 'CHL', 'COL'];
-  var data = {
-    USA: {
-      lat: 38,
-      lon: -97,
-    },
-    MEX: {
-      lat: 23,
-      lon: -102,
-    },
-    CHL: {
-      lat: -30,
-      lon: -71,
-    },
-    COL: {
-      lat: 4,
-      lon: -72,
-    },
+  source = "United States of America";
+  // curryear - 1980
+  // immigration first  
+  // destinations = ['MEX', 'CHL', 'COL'];
+  var data = {};
+  var source_coords = getCoords(source);
+  // console.log(source_coords);
+
+  if (!countryInMigData(source)) {
+    console.log(source + ' not found in migration dataset');
+    return; //error
   }
+
+  var mig_data = getImmigrationData(source);
+  // console.log(mig_data);
+  for (var key in mig_data) {
+    if (!getCoords(mig_data[key].name)) {
+      continue;
+    }
+    data[getISOOfCountry(mig_data[key].name)] = getCoords(mig_data[key].name);
+  }
+
+  // for (var key in migration_data) {
+  //   if (migration_data[key])
+  //   data[migration_data[key]] = getCoords(destinations[key]);
+  // }
   var arcs = [];
-  for (var dest in destinations) {
+  for (var d in data) {
+    // console.log(data);
+    // console.log(data[d]);
+    // console.log(d);
+    if (!data[d].lat || !data[d].lon) {
+      console.log('Null Island');
+      console.log(d);
+      continue;
+    }
     arcs.push(
       { 
         origin: {
-          latitude: data[source].lat,
-          longitude: data[source].lon,
+          latitude: source_coords.lat,
+          longitude: source_coords.lon,
         },
         destination: {
-          latitude: data[destinations[dest]].lat,
-          longitude: data[destinations[dest]].lon,
+          latitude: data[d].lat,
+          longitude: data[d].lon,
         }
       }
     );
   }
+  console.log(arcs);
   return arcs;
 }
 
@@ -193,15 +247,11 @@ function redraw() {
 }// redraw
 
 function init() {
-
   map = new Datamap({//need global var
     scope: 'world',
     // responsive: true,
     element: document.getElementById('world'),
-    projection: 'orthographic',
-    projectionConfig: {
-      rotation: global_rotation
-    },
+    projection: 'mercator',
     fills: {
       defaultFill: '#9acd32',
       ata: '#D3F5FF',
@@ -214,41 +264,35 @@ function init() {
       borderColor: 'rgba(50,50,50,0.2)',
       highlightBorderWidth: 1,
         // don't change color on mouse hover
-      // highlightFillColor: function(geo) {
-      //   return geo['fillColor'] || 'rgba(30,30,30,0.5)';
-      // },
+      highlightFillColor: function(geo) {
+        return geo['fillColor'] || 'rgba(30,30,30,0.5)';
+      },
 
       // only change border
       highlightBorderColor: 'rgba(222,222,222,0.5)',
 
-      // // show desired information in tooltip
+      // show desired information in tooltip
       // popupTemplate: function(geo, data) {
       //   // don't show tooltip if country don't present in dataset
-      //   if (!data) { return ; }
+      //   // if (!data) { return ; }
       //   // tooltip content
       //   return ['',
-      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ' + geo.properties.name,
-      //     ': ' + data.percent,
+      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ',
+      //     ': ',
       //   ''].join('');        
-      //   }
+      // }
     }
   });
 
-
-  //draw a legend for this map
-  map.legend();
-
-  map.graticule();
-
   arcs = populateArcs();
-  map.bubbles(
-    populateBubbles(),
-    {
-      popupTemplate: function(geo, data) {
-        return "<div class='hoverinfo'>Population: " + data.population + "";
-      }
-    }
-  );
+  // map.bubbles(
+  //   populateBubbles(),
+  //   {
+  //     popupTemplate: function(geo, data) {
+  //       return "<div class='hoverinfo'>Population: " + data.population + "";
+  //     }
+  //   }
+  // );
 
 
   map.arc(arcs,
@@ -263,36 +307,16 @@ function init() {
   //   .delay(function (d) { return 50 * 20; })
   //   .duration(800)
   //   .remove();
-
-  var drag = d3.behavior.drag().on('drag', function() {
-    var dx = d3.event.dx;
-    var dy = d3.event.dy;
-
-    // var rotation = livemapScope.rotation;
-    var rotation = map.projection.rotate();
-    var radius = map.projection.scale();
-    var scale = d3.scale.linear()
-      .domain([-1 * radius, radius])
-      .range([-90, 90]);
-    var degX = scale(dx);
-    var degY = scale(dy);
-    rotation[0] += degX;
-    rotation[1] -= degY;
-    if (rotation[1] > 90) rotation[1] = 90;
-    if (rotation[1] < -90) rotation[1] = -90;
-
-    if (rotation[0] >= 180) rotation[0] -= 360;
-      global_rotation = rotation;
-      redraw();
-  });
-
-  d3.select("#world").select("svg").call(drag);
-
-
 }// init
 
 
+function dataLoaded() {
+  return pop_loaded && mig_loaded && group_loaded;
+}
 
+$( "html" ).click(function() {
+  redraw();
+});
 
-redraw();
+// redraw();
               
