@@ -1,11 +1,9 @@
 /* -------- VARIABLES -------- */
-var FieldsEnum = {
-  "Country": 0,
-  "Datatype": 1,
-  "Year": 2,
-  "Value": 3,
-}
-Object.freeze(FieldsEnum);
+var MigrationEnum = {
+  'immigration': 1,
+  'emigration': 2,
+};
+Object.freeze(MigrationEnum);
 
 var MAX_POP = 10000;
 Object.freeze(MAX_POP);
@@ -23,8 +21,9 @@ curryear.innerHTML = slider.value; // Display the default slider value
 var map;
 var global_rotation = [90,-30];
 
-var current_country = 'USA';
+var current_country = 'AUS';
 var current_year = slider.value;
+var current_mig_method = MigrationEnum.immigration;
 
 
 // hacky hacky
@@ -121,11 +120,12 @@ function countryInMigData(iso) {
 
 /* ---- Rendering Functions ---- */
 
-function populateArcs(source) {
-  source = current_country;
+function populateArcs(source, migration_method) {
+  // source = current_country;
   // curryear - 1980
   var source_coords = getCoords(source);
   var dest_coords;
+  var mig_data; // migration data;
   var arcs = [];
 
   if (!source_coords) {
@@ -137,15 +137,37 @@ function populateArcs(source) {
     return;
   }
 
-  var mig_data = getImmigrationData(source);
+  if (migration_method == MigrationEnum.immigration) {
+    mig_data = getImmigrationData(source);
+  } else if (migration_method == MigrationEnum.emigration) {
+    mig_data = getEmigrationData(source);
+  }
+
   for (var i=0; i<mig_data.length; i++) {
+    var point = {};
     dest_coords = getCoords(mig_data[i].ISOa3);
     if (!dest_coords) {
       console.log('Failed to get coords for ' + mig_data[i].ISOa3);
       continue;
     }
+
     // TODO: put in thresholding here
-    if (mig_data[i].population_post_1980[slider.value - 1980] > 5000) {
+    if (mig_data[i].population_post_1980[slider.value - 1980] < 5000) {
+      continue;
+    }
+
+    if (migration_method == MigrationEnum.immigration) {
+      arcs.push({
+        origin: {
+          latitude: dest_coords.lat,
+          longitude: dest_coords.lon,
+        },
+        destination: {
+          latitude: source_coords.lat,
+          longitude: source_coords.lon,
+        }
+      });
+    } else if (migration_method == MigrationEnum.emigration) {
       arcs.push({
         origin: {
           latitude: source_coords.lat,
@@ -157,6 +179,7 @@ function populateArcs(source) {
         }
       });
     }
+
   }
   return arcs;
 }
@@ -222,15 +245,15 @@ function colorMap(source, year) {
 }
 
 
-function updateColor(country, population) {
+function updateColor(iso, population) {
   var data = {}
-  data[country] = colors(parseInt(population));
-  // data[country] = colors(Math.log(parseInt(population)));
-  if (country == 'CHN') {
-    console.log(parseInt(population));
-    console.log(colors(parseInt(population)));
-  }
+  data[iso] = colors(parseInt(population));
   map.updateChoropleth(data);
+  // data[country] = colors(Math.log(parseInt(population)));
+  // if (country == 'CHN') {
+  //   console.log(parseInt(population));
+  //   console.log(colors(parseInt(population)));
+  // }
 }
 
 
@@ -260,7 +283,7 @@ function init() {
       highlightBorderWidth: 1,
         // don't change color on mouse hover
       highlightFillColor: function(geo) {
-        return geo['fillColor'] || 'rgba(30,30,30,0.5)';
+        return geo['fillColor'] || 'rgba(255, 165, 0, 0.9)';
       },
 
       // only change border
@@ -278,10 +301,10 @@ function init() {
       // }
     },
     arcConfig: {
-      strokeColor: '#DD1C77',
+      strokeColor: 'rgba(221, 28, 119, 0.9)',
       strokeWidth: 2,
       arcSharpness: 1,
-      animationSpeed: 600,
+      animationSpeed: 800,
       greatArc: true,
     },
   });
@@ -295,7 +318,7 @@ function init() {
   //   }
   // );
 
-  renderArcs(populateArcs());
+  renderArcs(populateArcs(current_country, current_mig_method));
 
 }// init
 
@@ -304,7 +327,7 @@ function init() {
 slider.oninput = function() {
   curryear.innerHTML = this.value;
   // redraw();
-  renderArcs(populateArcs());
+  renderArcs(populateArcs(current_country, current_mig_method));
   colorMap(current_country,  slider.value);
   current_year = slider.value;
 }
