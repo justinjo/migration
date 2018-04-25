@@ -33,7 +33,9 @@
 }*/
 
 #world {
-  background-color: rgba(0, 119, 190, 0.8);
+  /*background-color: rgba(0, 119, 190, 0.8);*/
+  border: 2px solid grey;
+  border-radius: 20px;
 }
 
 /*#worldwrapper {
@@ -42,3 +44,36 @@
 #world {
   display: inline-block;
 }*/
+
+body {
+  font-family: helvetica;
+}
+
+#world {
+  margin-bottom: 5px;
+  overflow: hidden;
+  border: 2px solid silver;
+  border-radius: 6px;
+  background: white;
+}
+
+.zoom-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  border: none;
+  background: silver;
+  font-size: 16px;
+  color: white;
+  cursor: pointer;
+}
+
+#reset {
+  width: 70px;
+
+}
+
+#zoom-info {
+  display: inline-block;
+  padding: 10px;
+}

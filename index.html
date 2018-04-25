@@ -16,13 +16,23 @@
     Hello world
   </div>
   <!-- <div id="map" style="position: relative; width: 80%; max-height: 800px;"></div> -->
+ 
   <div id="worldwrapper">
-    <div id="world" style="height: 600px; width: 800px;"></div>
+    <div id="world" style="position: relative; height: 600px; width: 800px;"></div>
   </div>
+
+
+
+  <button class="zoom-button" data-zoom="reset" id="reset">Reset</button>
+  <button class="zoom-button" data-zoom="out">-</button>
+  <button class="zoom-button" data-zoom="in">+</button>
+
+  <br><br>
+
   <div>
     <input type="range" min="1980" max="2013" value="1980" class="slider" id="slider">
     <p>Current Year: <span id="curryear"></span></p>
   </div>
-  <div id="json"></div>
+
   <script src="./js/map.js"></script> 
 </body>

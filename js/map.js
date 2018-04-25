@@ -185,7 +185,13 @@ function populateArcs(source, migration_method) {
 }
 
 function renderArcs(arcs) {
-  map.arc(arcs);
+  console.log('rendering arc');
+  console.log(map);
+  if (map.instance) {
+    map.instance.arc(arcs);
+  } else {
+    map.arc(arcs);
+  }
 }
 
 // function populateBubbles(source, destinations) {
@@ -265,7 +271,7 @@ function redraw() {
 
 
 function init() {
-  map = new Datamap({//need global var
+  var new_map = new Datamap({//need global var
     scope: 'world',
     // responsive: true,
     element: document.getElementById('world'),
@@ -308,6 +314,9 @@ function init() {
       greatArc: true,
     },
   });
+  map = new_map.instance ? new_map.instance : new_map;
+  console.log('init')
+  console.log(map);
 
   // map.bubbles(
   //   populateBubbles(),
@@ -333,137 +342,278 @@ slider.oninput = function() {
 }
 
 
-/* ---- Data Wrangling Functions ---- */
 
-var jsn = document.getElementById("json");
+
+
+
+
+/* ---- Zoom Functions ---- */
+
+function Zoom(args) {
+  $.extend(this, {
+    $buttons:   $(".zoom-button"),
+    $info:      $("#zoom-info"),
+    scale:      { max: 50, currentShift: 0 },
+    $container: args.$container,
+    datamap:    args.datamap
+  });
+  // console.log(this); 
+
+  this.init();
+}
+
+
+Zoom.prototype.init = function() {
+  var paths = this.datamap.svg.selectAll("path"),
+      subunits = this.datamap.svg.selectAll(".datamaps-subunit");
+
+  // preserve stroke thickness
+  paths.style("vector-effect", "non-scaling-stroke");
+
+  // disable click on drag end
+  subunits.call(
+    d3.behavior.drag().on("dragend", function() {
+      d3.event.sourceEvent.stopPropagation();
+    })
+  );
+
+  this.scale.set = this._getScalesArray();
+  this.d3Zoom = d3.behavior.zoom().scaleExtent([ 1, this.scale.max ]);
+
+  this._displayPercentage(1);
+  this.listen();
+};
+
+Zoom.prototype.listen = function() {
+  this.$buttons.off("click").on("click", this._handleClick.bind(this));
+
+  this.datamap.svg
+    .call(this.d3Zoom.on("zoom", this._handleScroll.bind(this)))
+    .on("dblclick.zoom", null); // disable zoom on double-click
+};
+
+Zoom.prototype.reset = function() {
+  this._shift("reset");
+};
+
+Zoom.prototype._handleScroll = function() {
+  var translate = d3.event.translate,
+      scale = d3.event.scale,
+      limited = this._bound(translate, scale);
+
+  this.scrolled = true;
+
+  this._update(limited.translate, limited.scale);
+};
+
+Zoom.prototype._handleClick = function(event) {
+  var direction = $(event.target).data("zoom");
+
+  this._shift(direction);
+};
+
+Zoom.prototype._shift = function(direction) {
+  var center = [ this.$container.width() / 2, this.$container.height() / 2 ],
+      translate = this.d3Zoom.translate(), translate0 = [], l = [],
+      view = {
+        x: translate[0],
+        y: translate[1],
+        k: this.d3Zoom.scale()
+      }, bounded;
+
+  translate0 = [
+    (center[0] - view.x) / view.k,
+    (center[1] - view.y) / view.k
+  ];
+
+  if (direction == "reset") {
+    view.k = 1;
+    this.scrolled = true;
+  } else {
+    view.k = this._getNextScale(direction);
+  }
+
+l = [ translate0[0] * view.k + view.x, translate0[1] * view.k + view.y ];
+
+  view.x += center[0] - l[0];
+  view.y += center[1] - l[1];
+
+  bounded = this._bound([ view.x, view.y ], view.k);
+
+  this._animate(bounded.translate, bounded.scale);
+};
+
+Zoom.prototype._bound = function(translate, scale) {
+  var width = this.$container.width(),
+      height = this.$container.height();
+
+  translate[0] = Math.min(
+    (width / height)  * (scale - 1),
+    Math.max( width * (1 - scale), translate[0] )
+  );
+
+  translate[1] = Math.min(0, Math.max(height * (1 - scale), translate[1]));
+
+  return { translate: translate, scale: scale };
+};
+
+Zoom.prototype._update = function(translate, scale) {
+  this.d3Zoom
+    .translate(translate)
+    .scale(scale);
+
+  this.datamap.svg.selectAll("g")
+    .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+
+  this._displayPercentage(scale);
+};
+
+Zoom.prototype._animate = function(translate, scale) {
+  var _this = this,
+      d3Zoom = this.d3Zoom;
+
+  d3.transition().duration(350).tween("zoom", function() {
+    var iTranslate = d3.interpolate(d3Zoom.translate(), translate),
+        iScale = d3.interpolate(d3Zoom.scale(), scale);
+
+    return function(t) {
+      _this._update(iTranslate(t), iScale(t));
+    };
+  });
+};
+
+Zoom.prototype._displayPercentage = function(scale) {
+  var value;
+
+  value = Math.round(Math.log(scale) / Math.log(this.scale.max) * 100);
+  this.$info.text(value + "%");
+};
+
+Zoom.prototype._getScalesArray = function() {
+  var array = [],
+      scaleMaxLog = Math.log(this.scale.max);
+
+  for (var i = 0; i <= 10; i++) {
+    array.push(Math.pow(Math.E, 0.1 * i * scaleMaxLog));
+  }
+
+  return array;
+};
+
+Zoom.prototype._getNextScale = function(direction) {
+  var scaleSet = this.scale.set,
+      currentScale = this.d3Zoom.scale(),
+      lastShift = scaleSet.length - 1,
+      shift, temp = [];
+
+  if (this.scrolled) {
+
+    for (shift = 0; shift <= lastShift; shift++) {
+      temp.push(Math.abs(scaleSet[shift] - currentScale));
+    }
+
+    shift = temp.indexOf(Math.min.apply(null, temp));
+
+    if (currentScale >= scaleSet[shift] && shift < lastShift) {
+      shift++;
+    }
+
+    if (direction == "out" && shift > 0) {
+      shift--;
+    }
+
+    this.scrolled = false;
+
+  } else {
+
+    shift = this.scale.currentShift;
+
+    if (direction == "out") {
+      shift > 0 && shift--;
+    } else {
+      shift < lastShift && shift++;
+    }
+  }
+
+  this.scale.currentShift = shift;
+
+  return scaleSet[shift];
+};
+
+function Datamap() {
+  this.$container = $("#world");
+  // this.instance = new Datamaps({
+  //   scope: 'world',
+  //   element: this.$container.get(0),
+  //   projection: 'mercator',
+  //   done: this._handleMapReady.bind(this)
+  // });
+  this.instance = new Datamaps({
+    scope: 'world',
+    // responsive: true,
+    element: document.getElementById('world'),
+    projection: 'mercator',
+    done: this._handleMapReady.bind(this),
+    fills: {
+      defaultFill: '#9acd32',
+      ata: '#D3F5FF',
+    },
+    data: {
+      'ATA': { fillKey: 'ata' },
+    },
+    geographyConfig: {
+      hideAntarctica: 0,
+      borderColor: 'rgba(50,50,50,0.2)',
+      highlightBorderWidth: 1,
+        // don't change color on mouse hover
+      highlightFillColor: function(geo) {
+        return geo['fillColor'] || 'rgba(255, 165, 0, 0.9)';
+      },
+
+      // only change border
+      highlightBorderColor: 'rgba(222,222,222,0.5)',
+
+      // show desired information in tooltip
+      // popupTemplate: function(geo, data) {
+      //   // don't show tooltip if country don't present in dataset
+      //   // if (!data) { return ; }
+      //   // tooltip content
+      //   return ['',
+      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ',
+      //     ': ',
+      //   ''].join('');        
+      // }
+    },
+    arcConfig: {
+      strokeColor: 'rgba(221, 28, 119, 0.9)',
+      strokeWidth: 2,
+      arcSharpness: 1,
+      animationSpeed: 800,
+      greatArc: true,
+    },
+  });
   
-function pls_mig() {
-  // time to arrange:
-  if (!mig_loaded || !group_loaded) {
-    return;
-  }
+  map = this.instance;
+  console.log('instance');
+  console.log(map);
 
-  var new_data = [];
+  // map.bubbles(
+  //   populateBubbles(),
+  //   {
+  //     popupTemplate: function(geo, data) {
+  //       return "<div class='hoverinfo'>Population: " + data.population + "";
+  //     }
+  //   }
+  // );
 
-  for (var i=0; i<migration_data.length; i++) {
-    var immigration = [];
-    var emigration = [];
-
-    for (var j=0; j<migration_data[i].immigration.length; j++) {
-      if (!migration_data[i].immigration[j].name) {
-        console.log(migration_data[i].immigration[j].name);
-        return;
-      }
-      var name = migration_data[i].immigration[j].name;
-      var iso = getISOOfCountry(name);
-      var years_since = migration_data[i].immigration[j].yearsSince1980;
-      if (!iso) {
-        if (name =='TfYR of Macedonia' || name == 'The former Yugoslav Republic of Macedonia') {
-          iso = 'MKD';
-          name = 'The former Yugoslav Republic of Macedonia';
-        } else if (name =='Czech Republic') {
-          iso = 'CZE';
-        } else if (name =='United Kingdom') {
-          iso = 'GBR';
-        }
-      }
-      var point = {
-        'ISOa3': iso,
-        'country_name': name,
-        'population_post_1980': years_since,
-      };
-      immigration.push(point);
-    }
-
-    for (var j=0; j<migration_data[i].emigration.length; j++) {
-      if (!migration_data[i].emigration[j].name) {
-        console.log(migration_data[i].emigration[j].name);
-        return;
-      }
-      var name = migration_data[i].emigration[j].name;
-      var iso = getISOOfCountry(name);
-      var years_since = migration_data[i].emigration[j].yearsSince1980;
-      if (!iso) {
-        if (name =='TfYR of Macedonia' || name == 'The former Yugoslav Republic of Macedonia') {
-          iso = 'MKD';
-          name = 'The former Yugoslav Republic of Macedonia';
-        } else if (name =='Czech Republic') {
-          iso = 'CZE';
-        } else if (name =='United Kingdom') {
-          iso = 'GBR';
-        }
-      }
-      var point = {
-        'ISOa3': iso,
-        'country_name': name,
-        'population_post_1980': years_since,
-      };
-      emigration.push(point);
-    }
-
-    var name = migration_data[i].name;
-    var iso = getISOOfCountry(name);
-    if (!iso) {
-      if (name =='TfYR of Macedonia' || name == 'The former Yugoslav Republic of Macedonia') {
-        iso = 'MKD';
-        name = 'The former Yugoslav Republic of Macedonia';
-      } else if (name =='Czech Republic') {
-        iso = 'CZE';
-      } else if (name =='United Kingdom') {
-        iso = 'GBR';
-      }
-    }
-
-    var point = {
-      'ISOa3': iso,
-      'country_name': name,
-      'immigration': immigration,
-      'emigration': emigration,
-    };
-
-    new_data.push(point);
-  }
-
-  jsn.innerHTML = JSON.stringify(new_data);
-  console.log('wrote json');
+  renderArcs(populateArcs(current_country, current_mig_method));
 }
 
-function pls_group() {
-  if (!group_loaded) {
-    return;
-  }
-
-  var new_data = [];
-
-  for (var i=0; i<grouping_data.length; i++) {
-    var point = {
-      'ISOa3': grouping_data[i]["ISO-alpha3 Code"],
-      'country_name': grouping_data[i]["Country or Area"],
-      'intermediate_region_code': grouping_data[i]["Intermediate Region Code"].toString(),
-      'intermediate_region_name': grouping_data[i]["Intermediate Region Name"],
-      'subregion_code': grouping_data[i]["Sub-region Code"].toString(),
-      'subregion_name': grouping_data[i]["Sub-region Name"],
-      'region_code': grouping_data[i]["Region Code"].toString(),
-      'region_name': grouping_data[i]["Region Name"],
-      'global_code': "001",
-      'global_name': 'World',
-      'latitude': cleanCoord(grouping_data[i]["lat"]),
-      'longitude': cleanCoord(grouping_data[i]["lng"]),
-    };
-
-    new_data.push(point);
-  }
-
-  jsn.innerHTML = JSON.stringify(new_data);
-  console.log('wrote json');
+Datamap.prototype._handleMapReady = function(datamap) {
+  this.zoom = new Zoom({
+    $container: this.$container,
+    datamap: datamap
+  });
 }
 
-function cleanCoord(coord) {
-  return coord != null ? coord.toString() : "0";
-}
-
-
-
-
-
-              
+// console.log(new Datamap());
