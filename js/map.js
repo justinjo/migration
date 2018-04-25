@@ -9,7 +9,7 @@ var MAX_POP = 10000;
 Object.freeze(MAX_POP);
 
 // json data
-var population_data = [], migration_data = [], grouping_data = [], region_data = [];
+var migration_data = [], region_data = [];
 
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
 var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#9acd32']);
@@ -27,17 +27,10 @@ var current_mig_method = MigrationEnum.immigration;
 
 
 // hacky hacky
-var pop_loaded = false, mig_loaded = false, group_loaded = false, reg_loaded = false;
+var mig_loaded = false, group_loaded = false;
 
 
 /*  -------- DATA LOADING -------- */
-
-$.getJSON("./data/pop_by_year.json", function(data) {
-  population_data = data;
-  console.log('Loaded population data.');
-  pop_loaded = true;
-  colorMap(current_country,  slider.value);
-});
 
 $.getJSON("./data/migration.json", function(data) {
   migration_data = data;
@@ -56,14 +49,6 @@ $.getJSON("./data/regions.json", function(data) {
     redraw();
   }
 })
-
-// $.getJSON("./data/UN_groupings.json", function(data) {
-//   grouping_data = data;
-//   console.log('Loaded UN grouping data.');
-//   group_loaded = true;
-//   // populateArcs();
-//   redraw();
-// });
 
 
 /* -------- FUNCTIONS -------- */
@@ -143,6 +128,12 @@ function populateArcs(source, migration_method) {
     mig_data = getEmigrationData(source);
   }
 
+  if (!mig_data) {
+    console.log('No migration data found for ' + source);
+    return;
+  }
+
+
   for (var i=0; i<mig_data.length; i++) {
     var point = {};
     dest_coords = getCoords(mig_data[i].ISOa3);
@@ -185,13 +176,7 @@ function populateArcs(source, migration_method) {
 }
 
 function renderArcs(arcs) {
-  console.log('rendering arc');
-  console.log(map);
-  if (map.instance) {
-    map.instance.arc(arcs);
-  } else {
-    map.arc(arcs);
-  }
+  map.arc(arcs);
 }
 
 // function populateBubbles(source, destinations) {
@@ -236,13 +221,25 @@ function renderArcs(arcs) {
 //   }
 // }
 
-function colorMap(source, year) {
+function colorMap(source, year, migration_method) {
   if (!countryInMigData(source)) {
     console.log('Error: ' + source + ' not found in migration dataset');
     return;
   }
 
-  var mig_data = getImmigrationData(source);
+
+  var mig_data;
+
+  if (migration_method == MigrationEnum.immigration) {
+    mig_data = getImmigrationData(source);
+  } else if (migration_method == MigrationEnum.emigration) {
+    mig_data = getEmigrationData(source);
+  }
+
+  if (!mig_data) {
+    console.log('No migration data found for ' + source);
+    return;
+  }
 
   for (var i=0; i<mig_data.length; i++) {
     var population = mig_data[i].population_post_1980[year - 1980];
@@ -255,18 +252,14 @@ function updateColor(iso, population) {
   var data = {}
   data[iso] = colors(parseInt(population));
   map.updateChoropleth(data);
-  // data[country] = colors(Math.log(parseInt(population)));
-  // if (country == 'CHN') {
-  //   console.log(parseInt(population));
-  //   console.log(colors(parseInt(population)));
-  // }
 }
 
 
 function redraw() {
-  d3.select("#world").html('');
-  init();
-  colorMap(current_country,  slider.value);
+  // d3.select("#world").html('');
+  // init();
+  new Datamap();
+  colorMap(current_country,  slider.value, current_mig_method);
 }// redraw
 
 
@@ -277,7 +270,7 @@ function init() {
     element: document.getElementById('world'),
     projection: 'mercator',
     fills: {
-      defaultFill: '#9acd32',
+      defaultFill: '#DCDCDC',
       ata: '#D3F5FF',
     },
     data: {
@@ -314,9 +307,8 @@ function init() {
       greatArc: true,
     },
   });
+  // isolate map itself not the greater object
   map = new_map.instance ? new_map.instance : new_map;
-  console.log('init')
-  console.log(map);
 
   // map.bubbles(
   //   populateBubbles(),
@@ -335,19 +327,30 @@ function init() {
 // Update the current slider value (each time you drag the slider handle)
 slider.oninput = function() {
   curryear.innerHTML = this.value;
-  // redraw();
-  renderArcs(populateArcs(current_country, current_mig_method));
-  colorMap(current_country,  slider.value);
+  rerender();
   current_year = slider.value;
+}
+
+$('.toggle').click(function() {
+  if (this.checked) {
+    current_mig_method = MigrationEnum.emigration; 
+  } else {
+    current_mig_method = MigrationEnum.immigration;
+  }
+  // console.log(current_mig_method);
+  rerender();
+});
+
+function rerender() {
+  renderArcs(populateArcs(current_country, current_mig_method));
+  colorMap(current_country, slider.value, current_mig_method);
 }
 
 
 
 
-
-
-
-/* ---- Zoom Functions ---- */
+// TODO: move to separate file
+/* ---- Datamap Zoom Functions ---- */
 
 function Zoom(args) {
   $.extend(this, {
@@ -357,7 +360,6 @@ function Zoom(args) {
     $container: args.$container,
     datamap:    args.datamap
   });
-  // console.log(this); 
 
   this.init();
 }
@@ -555,7 +557,7 @@ function Datamap() {
     projection: 'mercator',
     done: this._handleMapReady.bind(this),
     fills: {
-      defaultFill: '#9acd32',
+      defaultFill: '#DCDCDC',
       ata: '#D3F5FF',
     },
     data: {
@@ -592,10 +594,8 @@ function Datamap() {
       greatArc: true,
     },
   });
-  
+
   map = this.instance;
-  console.log('instance');
-  console.log(map);
 
   // map.bubbles(
   //   populateBubbles(),
@@ -615,5 +615,3 @@ Datamap.prototype._handleMapReady = function(datamap) {
     datamap: datamap
   });
 }
-
-// console.log(new Datamap());
