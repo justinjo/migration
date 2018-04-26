@@ -19,14 +19,10 @@ var curryear = document.getElementById("curryear");
 curryear.innerHTML = slider.value; // Display the default slider value
 
 var map;
-var global_rotation = [90,-30];
-
-var current_country = 'AUS';
+var current_country = 'DEU';
 var current_year = slider.value;
 var current_mig_method = MigrationEnum.immigration;
 
-
-// hacky hacky
 var mig_loaded = false, group_loaded = false;
 
 
@@ -37,8 +33,10 @@ $.getJSON("./data/migration.json", function(data) {
   console.log('Loaded migration data.');
   mig_loaded = true;
   if (reg_loaded) {
-    redraw();
+    renderMap();
   }
+  // checkData();
+  generateSelectors()
 });
 
 $.getJSON("./data/regions.json", function(data) {
@@ -46,9 +44,26 @@ $.getJSON("./data/regions.json", function(data) {
   console.log('Loaded region data.');
   reg_loaded = true;
   if (mig_loaded) {
-    redraw();
+    renderMap();
   }
 })
+
+
+
+function checkData() {
+  for (var i=0; i<migration_data.length; i++) {
+    for (var j=0; j<migration_data[i].immigration.length; j++) {
+      if (!migration_data[i].immigration[j].ISOa3) {
+        console.log(migration_data[i].immigration[j].country_name);
+      }
+    }
+    for (var j=0; j<migration_data[i].emigration.length; j++) {
+      if (!migration_data[i].emigration[j].ISOa3) {
+        console.log(migration_data[i].emigration[j].country_name);
+      }
+    }
+  }
+}
 
 
 /* -------- FUNCTIONS -------- */
@@ -105,11 +120,8 @@ function countryInMigData(iso) {
 
 /* ---- Rendering Functions ---- */
 
-function populateArcs(source, migration_method) {
-  // source = current_country;
-  // curryear - 1980
-  var source_coords = getCoords(source);
-  var dest_coords;
+function getArcs(source, migration_method) {
+  var dest_coords, source_coords = getCoords(source);
   var mig_data; // migration data;
   var arcs = [];
 
@@ -156,7 +168,10 @@ function populateArcs(source, migration_method) {
         destination: {
           latitude: source_coords.lat,
           longitude: source_coords.lon,
-        }
+        },
+        // options: {
+        //   strokeWidth: mig_data[i].population_post_1980[slider.value - 1980]/10000
+        // }
       });
     } else if (migration_method == MigrationEnum.emigration) {
       arcs.push({
@@ -167,7 +182,10 @@ function populateArcs(source, migration_method) {
         destination: {
           latitude: dest_coords.lat,
           longitude: dest_coords.lon,
-        }
+        },
+        // options: {
+        //   strokeWidth: mig_data[i].population_post_1980[slider.value - 1980]/10000
+        // }
       });
     }
 
@@ -179,49 +197,9 @@ function renderArcs(arcs) {
   map.arc(arcs);
 }
 
-// function populateBubbles(source, destinations) {
-//   source = current_country;
-//   destinations = ['MEX', 'CHL', 'COL'];
-//   var data = {
-//     USA: {
-//       lat: 38,
-//       lon: -97,
-//       pop: 20000,
-//     },
-//     MEX: {
-//       lat: 23,
-//       lon: -102,
-//       pop: 100,
-//     },
-//     CHL: {
-//       lat: -30,
-//       lon: -71,
-//       pop: 200,
-//     },
-//     COL: {
-//       lat: 4,
-//       lon: -72,
-//       pop: 300,
-//     },
-//   }
-//   var bubbles = [];
-//   for (var dest in destinations) {
-//     bubbles.push(makeBubble(data[destinations[dest]]));
-//   }
-//   return bubbles;
-// }
-
-
-// function makeBubble(entry) {
-//   return {
-//     latitude: entry.lat,
-//     longitude: entry.lon,
-//     population: entry.pop, 
-//     radius: 20
-//   }
-// }
-
 function colorMap(source, year, migration_method) {
+  d3.select('#data_info').html('');
+  
   if (!countryInMigData(source)) {
     console.log('Error: ' + source + ' not found in migration dataset');
     return;
@@ -236,10 +214,16 @@ function colorMap(source, year, migration_method) {
     mig_data = getEmigrationData(source);
   }
 
-  if (!mig_data) {
-    console.log('No migration data found for ' + source);
+  if (!mig_data || mig_data.length == 0) {
+    var info_string = 'No ' + (
+      migration_method == MigrationEnum.immigration ?
+      'immigration' : 'emigration'
+    ) + ' data found for ' + source + ' in ' + current_year + '.';
+    d3.select('#data_info').html(info_string);
+    resetColor();
     return;
   }
+  // console.log(mig_data);
 
   for (var i=0; i<mig_data.length; i++) {
     var population = mig_data[i].population_post_1980[year - 1980];
@@ -255,80 +239,24 @@ function updateColor(iso, population) {
 }
 
 
-function redraw() {
+function resetColor() {
+  for (var i=0; i<region_data.length; i++) {
+    updateColor(region_data[i].ISOa3, 0);
+  }
+}
+
+
+function renderMap() {
   // d3.select("#world").html('');
-  // init();
   new Datamap();
   colorMap(current_country,  slider.value, current_mig_method);
-}// redraw
-
-
-function init() {
-  var new_map = new Datamap({//need global var
-    scope: 'world',
-    // responsive: true,
-    element: document.getElementById('world'),
-    projection: 'mercator',
-    fills: {
-      defaultFill: '#DCDCDC',
-      ata: '#D3F5FF',
-    },
-    data: {
-      'ATA': { fillKey: 'ata' },
-    },
-    geographyConfig: {
-      hideAntarctica: 0,
-      borderColor: 'rgba(50,50,50,0.2)',
-      highlightBorderWidth: 1,
-        // don't change color on mouse hover
-      highlightFillColor: function(geo) {
-        return geo['fillColor'] || 'rgba(255, 165, 0, 0.9)';
-      },
-
-      // only change border
-      highlightBorderColor: 'rgba(222,222,222,0.5)',
-
-      // show desired information in tooltip
-      // popupTemplate: function(geo, data) {
-      //   // don't show tooltip if country don't present in dataset
-      //   // if (!data) { return ; }
-      //   // tooltip content
-      //   return ['',
-      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ',
-      //     ': ',
-      //   ''].join('');        
-      // }
-    },
-    arcConfig: {
-      strokeColor: 'rgba(221, 28, 119, 0.9)',
-      strokeWidth: 2,
-      arcSharpness: 1,
-      animationSpeed: 800,
-      greatArc: true,
-    },
-  });
-  // isolate map itself not the greater object
-  map = new_map.instance ? new_map.instance : new_map;
-
-  // map.bubbles(
-  //   populateBubbles(),
-  //   {
-  //     popupTemplate: function(geo, data) {
-  //       return "<div class='hoverinfo'>Population: " + data.population + "";
-  //     }
-  //   }
-  // );
-
-  renderArcs(populateArcs(current_country, current_mig_method));
-
-}// init
-
+}
 
 // Update the current slider value (each time you drag the slider handle)
 slider.oninput = function() {
   curryear.innerHTML = this.value;
-  rerender();
   current_year = slider.value;
+  rerender();
 }
 
 $('.toggle').click(function() {
@@ -342,9 +270,36 @@ $('.toggle').click(function() {
 });
 
 function rerender() {
-  renderArcs(populateArcs(current_country, current_mig_method));
+  // console.log('rerendering arcs')
+  renderArcs(getArcs(current_country, current_mig_method));
+  // console.log('rerendering color')
   colorMap(current_country, slider.value, current_mig_method);
 }
+
+
+function generateSelectors() {
+  for (var i=0; i<migration_data.length; i++) {
+    var entry = '<option value="' + migration_data[i].ISOa3 + '">' + 
+      migration_data[i].country_name + '</option>';
+      $('#combobox').append(entry);
+  }
+}
+
+
+
+
+
+
+$('#combobox').change(function() {
+  current_country = this.value;
+  rerender();
+});
+
+
+
+
+
+
 
 
 
@@ -590,7 +545,7 @@ function Datamap() {
       strokeColor: 'rgba(221, 28, 119, 0.9)',
       strokeWidth: 2,
       arcSharpness: 1,
-      animationSpeed: 800,
+      animationSpeed: 500,
       greatArc: true,
     },
   });
@@ -606,7 +561,7 @@ function Datamap() {
   //   }
   // );
 
-  renderArcs(populateArcs(current_country, current_mig_method));
+  renderArcs(getArcs(current_country, current_mig_method));
 }
 
 Datamap.prototype._handleMapReady = function(datamap) {

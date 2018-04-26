@@ -7,6 +7,7 @@
   <link rel="stylesheet" type="text/css" href="./css/style.css">
   
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
   <script src="./js/d3.v3.min.js"></script>
   <script src="./js/topojson.min.js"></script>
   <script src="./js/datamaps.world.hires.min.js"></script>
@@ -27,15 +28,29 @@
   <button class="zoom-button" data-zoom="out">-</button>
   <button class="zoom-button" data-zoom="in">+</button>
 
-  <br><br>
+<!--   <br><br> -->
 
   <input class="toggle" type="checkbox" />
 
   <br><br>
 
+  <div id="data_info"></div>
+
+  <br><br>
+
+
   <div>
-    <input type="range" min="1980" max="2013" value="1980" class="slider" id="slider">
+    <input type="range" min="1980" max="2013" value="1980" id="slider">
     <p>Current Year: <span id="curryear"></span></p>
+  </div>
+
+
+  <br><br>
+  <div>
+    <label>Current country: </label>
+    <select id="combobox">
+      <option value="">Select one...</option>
+    </select>
   </div>
 
   <script src="./js/map.js"></script> 

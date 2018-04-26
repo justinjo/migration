@@ -1,6 +1,6 @@
-.slider {
+#slider {
     -webkit-appearance: none;
-    width: 100%;
+    width: 800px;
     height: 15px;
     border-radius: 5px;   
     background: #d3d3d3;
@@ -10,7 +10,7 @@
     transition: opacity .2s;
 }
 
-.slider::-webkit-slider-thumb {
+#slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 25px;
@@ -20,7 +20,7 @@
     cursor: pointer;
 }
 
-.slider::-moz-range-thumb {
+#slider::-moz-range-thumb {
     width: 25px;
     height: 25px;
     border-radius: 50%;
@@ -124,3 +124,5 @@ body {
 .toggle:checked:before {
   left: 90px;
 }
+
+
