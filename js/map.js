@@ -12,7 +12,7 @@ Object.freeze(MAX_POP);
 var migration_data = [], region_data = [];
 
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
-var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#9acd32']);
+var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#42C0FB']);
 
 var slider = document.getElementById("slider");
 var curryear = document.getElementById("curryear");
@@ -77,6 +77,15 @@ function getISOOfCountry(country) {
     }
   }
   console.log('Could not get ISO of ' + country);
+}
+
+function getCountryName(iso) {
+  for (var i=0; i<region_data.length; i++) {
+    if (iso == region_data[i].ISOa3) {
+      return region_data[i].country_name;
+    }
+  }
+  console.log('Could not get ISO of ' + country); 
 }
 
 function getCoords(iso) {
@@ -199,6 +208,7 @@ function renderArcs(arcs) {
 
 function colorMap(source, year, migration_method) {
   d3.select('#data_info').html('');
+  resetColor();
   
   if (!countryInMigData(source)) {
     console.log('Error: ' + source + ' not found in migration dataset');
@@ -215,20 +225,44 @@ function colorMap(source, year, migration_method) {
   }
 
   if (!mig_data || mig_data.length == 0) {
-    var info_string = 'No ' + (
-      migration_method == MigrationEnum.immigration ?
-      'immigration' : 'emigration'
-    ) + ' data found for ' + source + ' in ' + current_year + '.';
-    d3.select('#data_info').html(info_string);
     resetColor();
     return;
   }
+  updateInfoHeader(source, mig_data, migration_method);
   // console.log(mig_data);
 
   for (var i=0; i<mig_data.length; i++) {
     var population = mig_data[i].population_post_1980[year - 1980];
     updateColor(mig_data[i].ISOa3, population); //.toString()?
   }
+}
+
+function updateInfoHeader(source, mig_data, migration_method) {
+  var country_name = getCountryName(source);
+  var total = 0;
+  for (var i=0; i<mig_data.length; i++) {
+    if (mig_data[i].country_name == 'Total') {
+      continue;
+    }
+    total += mig_data[i].population_post_1980[current_year - 1980];
+  }
+  var info_string;
+  if (!mig_data || mig_data.length == 0) {
+    info_string = 'No ' + (
+      migration_method == MigrationEnum.immigration ?
+      'immigration' : 'emigration'
+    ) + ' data found for ' + source + ' in ' + current_year + '.';
+    d3.select('#data_info').html(info_string);
+    resetColor();
+    return;
+  } else {
+    info_string = total.toLocaleString() + ' people ' + (
+        migration_method == MigrationEnum.immigration ?
+        'immigrated to ' : 'emigrated from '
+      ) + country_name + ' in ' + current_year + '.';
+  }
+  d3.select('#selected-info').html(info_string);
+
 }
 
 
@@ -261,9 +295,11 @@ slider.oninput = function() {
 
 $('.toggle').click(function() {
   if (this.checked) {
-    current_mig_method = MigrationEnum.emigration; 
+    current_mig_method = MigrationEnum.emigration;
+    colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#4CD964']);
   } else {
     current_mig_method = MigrationEnum.immigration;
+    colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#42C0FB']);
   }
   // console.log(current_mig_method);
   rerender();
@@ -531,15 +567,30 @@ function Datamap() {
       highlightBorderColor: 'rgba(222,222,222,0.5)',
 
       // show desired information in tooltip
-      // popupTemplate: function(geo, data) {
-      //   // don't show tooltip if country don't present in dataset
-      //   // if (!data) { return ; }
-      //   // tooltip content
-      //   return ['',
-      //     '<div style="opacity:0.7;" class="hoverinfo">% of visitors in ',
-      //     ': ',
-      //   ''].join('');        
-      // }
+      popupTemplate: function(geo, data) {
+        // don't show tooltip if country don't present in dataset
+        // if (!data) { return ; }
+        // tooltip content
+        var population = getPopulation(geo.id, current_year, current_mig_method);
+
+        // console.log(population);
+        var div_open = '<div style="opacity:1;width:100px;" class="hoverinfo">';
+        var div_close = '</div>';
+        var content;
+        if (population > 0) {
+          content = population.toLocaleString() + 
+            ' people migrated' +
+            (current_mig_method == MigrationEnum.immigration ? ' from ' : ' to ' ) +
+            getCountryName(geo.id) + ' in ' + current_year.toString();
+        } else {
+          content = 'No ' + 
+            (current_mig_method == MigrationEnum.immigration ? 'immigration' : 'emigration' ) +
+            ' data between ' + getCountryName(geo.id) + ' and ' + getCountryName(current_country) +
+            ' in ' + current_year.toString();
+        }
+          
+        return div_open + content + div_close;        
+      }
     },
     arcConfig: {
       strokeColor: 'rgba(221, 28, 119, 0.9)',
@@ -569,4 +620,26 @@ Datamap.prototype._handleMapReady = function(datamap) {
     $container: this.$container,
     datamap: datamap
   });
+}
+
+function getPopulation(iso, year, migration_method) {
+  var mig_data, population = 0;
+
+  if (migration_method == MigrationEnum.immigration) {
+    mig_data = getImmigrationData(current_country);
+  } else if (migration_method == MigrationEnum.emigration) {
+    mig_data = getEmigrationData(current_country);
+  }
+
+  if (!mig_data || mig_data.length == 0) {
+    console.log()
+    return 0;
+  }
+  for (var i=0; i<mig_data.length; i++) {
+    if (mig_data[i].ISOa3 == iso) {
+      console.log(mig_data[i].population_post_1980[current_year - 1980]);
+      return mig_data[i].population_post_1980[current_year - 1980];
+    }
+  }
+  return 0;
 }

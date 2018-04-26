@@ -13,45 +13,45 @@
   <script src="./js/datamaps.world.hires.min.js"></script>
 </head>
 <body>
-  <div>
-    Hello world
-  </div>
-  <!-- <div id="map" style="position: relative; width: 80%; max-height: 800px;"></div> -->
- 
-  <div id="worldwrapper">
-    <div id="world" style="position: relative; height: 600px; width: 800px;"></div>
+  <div id="landing-page">
   </div>
 
+  <div id="visualization-page">
+    <h1>
+      World Migration Data
+    </h1>
+    <h3 id="selected-info">
+      Select a country to view its migration information.
+    </h3>
+    <!-- <div id="map" style="position: relative; width: 80%; max-height: 800px;"></div> -->
+   
+    <div id="worldwrapper">
+      <div id="world" style="position: relative; height: 600px; width: 800px;"></div>
+    </div>
 
 
-  <button class="zoom-button" data-zoom="reset" id="reset">Reset</button>
-  <button class="zoom-button" data-zoom="out">-</button>
-  <button class="zoom-button" data-zoom="in">+</button>
+    <div id="button-bar">
+      <button class="zoom-button" data-zoom="reset" id="reset">Reset</button>
+      <button class="zoom-button" data-zoom="out">-</button>
+      <button class="zoom-button" data-zoom="in">+</button>
+      <input class="toggle" type="checkbox" />
+      <div id="country-select">
+        <label>Current country: </label>
+        <select id="combobox">
+          <option value="">Select one...</option>
+        </select>
+      </div>
+    </div>
+    <br><br>
 
-<!--   <br><br> -->
-
-  <input class="toggle" type="checkbox" />
-
-  <br><br>
-
-  <div id="data_info"></div>
-
-  <br><br>
+    <div>
+      <input type="range" min="1980" max="2013" value="1980" id="slider">
+      <p>Current Year: <span id="curryear"></span></p>
+    </div>
 
 
-  <div>
-    <input type="range" min="1980" max="2013" value="1980" id="slider">
-    <p>Current Year: <span id="curryear"></span></p>
+    <br><br>
+   
+    <script src="./js/map.js"></script> 
   </div>
-
-
-  <br><br>
-  <div>
-    <label>Current country: </label>
-    <select id="combobox">
-      <option value="">Select one...</option>
-    </select>
-  </div>
-
-  <script src="./js/map.js"></script> 
 </body>
