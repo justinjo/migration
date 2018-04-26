@@ -305,6 +305,19 @@ $('.toggle').click(function() {
   rerender();
 });
 
+
+// functions to change cursor type on map
+$("#world").mousedown(function() {
+  $("#world").removeClass("grabbable");
+  $("#world").addClass("grabbed");
+});
+
+$("#world").mouseup(function() {
+  $("#world").removeClass("grabbed");
+  $("#world").addClass("grabbable");
+});
+
+
 function rerender() {
   // console.log('rerendering arcs')
   renderArcs(getArcs(current_country, current_mig_method));
@@ -568,12 +581,8 @@ function Datamap() {
 
       // show desired information in tooltip
       popupTemplate: function(geo, data) {
-        // don't show tooltip if country don't present in dataset
-        // if (!data) { return ; }
-        // tooltip content
         var population = getPopulation(geo.id, current_year, current_mig_method);
 
-        // console.log(population);
         var div_open = '<div style="opacity:1;width:100px;" class="hoverinfo">';
         var div_close = '</div>';
         var content;
@@ -581,7 +590,10 @@ function Datamap() {
           content = population.toLocaleString() + 
             ' people migrated' +
             (current_mig_method == MigrationEnum.immigration ? ' from ' : ' to ' ) +
-            getCountryName(geo.id) + ' in ' + current_year.toString();
+            getCountryName(geo.id) + 
+            (current_mig_method == MigrationEnum.immigration ? ' to ' : ' from ' ) +
+            getCountryName(current_country) +
+            ' in ' + current_year.toString();
         } else {
           content = 'No ' + 
             (current_mig_method == MigrationEnum.immigration ? 'immigration' : 'emigration' ) +
@@ -593,9 +605,10 @@ function Datamap() {
       }
     },
     arcConfig: {
-      strokeColor: 'rgba(221, 28, 119, 0.9)',
+      strokeColor: 'rgba(221, 28, 119, 0.5)',
       strokeWidth: 2,
       arcSharpness: 1,
+
       animationSpeed: 500,
       greatArc: true,
     },
@@ -632,12 +645,10 @@ function getPopulation(iso, year, migration_method) {
   }
 
   if (!mig_data || mig_data.length == 0) {
-    console.log()
     return 0;
   }
   for (var i=0; i<mig_data.length; i++) {
     if (mig_data[i].ISOa3 == iso) {
-      console.log(mig_data[i].population_post_1980[current_year - 1980]);
       return mig_data[i].population_post_1980[current_year - 1980];
     }
   }

@@ -9,8 +9,16 @@ body {
   border: 2px solid silver;
   border-radius: 20px;
   background: white;
-  cursor: grab;
+}
+
+.grabbable {
   cursor: -webkit-grab;
+  cursor: grab;
+}
+
+.grabbed {
+  cursor: -webkit-grabbing;
+  cursor: grabbing;
 }
 
 .datamap .datamaps-hoverover{
