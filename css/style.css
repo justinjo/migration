@@ -152,9 +152,37 @@ body {
   background-color: #4CD964;
 }
 
-
-#country-select {
-  display: inline;
+#combobox {
+  -webkit-appearance: none;
+  font-size: 16px;
+  color:white;
 
 }
 
+.select-style {
+    appearance: none;
+    position: absolute;
+    left: 280px;
+    top: 0px;
+    border: 1px solid #ccc;
+    /*width: 120px;*/
+    border-radius: 4px;
+    /*overflow: hidden;*/
+    /*background-color: silver;*/
+    background: silver url("../img/icon-select.png") no-repeat 95% 50%;
+    background-size: 20px 20px;
+}
+
+.select-style select {
+    padding: 5px 8px;
+    width: 130%;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    background-image: none;
+    -webkit-appearance: none;
+}
+
+.select-style select:focus {
+    outline: none;
+}

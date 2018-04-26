@@ -228,7 +228,6 @@ function colorMap(source, year, migration_method) {
     resetColor();
     return;
   }
-  updateInfoHeader(source, mig_data, migration_method);
   // console.log(mig_data);
 
   for (var i=0; i<mig_data.length; i++) {
@@ -237,24 +236,31 @@ function colorMap(source, year, migration_method) {
   }
 }
 
-function updateInfoHeader(source, mig_data, migration_method) {
+function updateInfoHeader(source, migration_method) {
   var country_name = getCountryName(source);
   var total = 0;
+
+  var mig_data;
+
+  if (migration_method == MigrationEnum.immigration) {
+    mig_data = getImmigrationData(source);
+  } else if (migration_method == MigrationEnum.emigration) {
+    mig_data = getEmigrationData(source);
+  }
+
   for (var i=0; i<mig_data.length; i++) {
     if (mig_data[i].country_name == 'Total') {
       continue;
     }
     total += mig_data[i].population_post_1980[current_year - 1980];
   }
+  console.log('test');
   var info_string;
   if (!mig_data || mig_data.length == 0) {
     info_string = 'No ' + (
       migration_method == MigrationEnum.immigration ?
       'immigration' : 'emigration'
-    ) + ' data found for ' + source + ' in ' + current_year + '.';
-    d3.select('#data_info').html(info_string);
-    resetColor();
-    return;
+    ) + ' data found for ' + country_name + ' in ' + current_year + '.';
   } else {
     info_string = total.toLocaleString() + ' people ' + (
         migration_method == MigrationEnum.immigration ?
@@ -262,7 +268,6 @@ function updateInfoHeader(source, mig_data, migration_method) {
       ) + country_name + ' in ' + current_year + '.';
   }
   d3.select('#selected-info').html(info_string);
-
 }
 
 
@@ -284,6 +289,7 @@ function renderMap() {
   // d3.select("#world").html('');
   new Datamap();
   colorMap(current_country,  slider.value, current_mig_method);
+  updateInfoHeader(current_country, current_mig_method);
 }
 
 // Update the current slider value (each time you drag the slider handle)
@@ -323,6 +329,7 @@ function rerender() {
   renderArcs(getArcs(current_country, current_mig_method));
   // console.log('rerendering color')
   colorMap(current_country, slider.value, current_mig_method);
+  updateInfoHeader(current_country, current_mig_method);
 }
 
 
@@ -332,9 +339,8 @@ function generateSelectors() {
       migration_data[i].country_name + '</option>';
       $('#combobox').append(entry);
   }
+  $("#combobox").val(current_country);
 }
-
-
 
 
 
@@ -343,7 +349,6 @@ $('#combobox').change(function() {
   current_country = this.value;
   rerender();
 });
-
 
 
 
