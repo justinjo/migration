@@ -5,14 +5,14 @@ var MigrationEnum = {
 };
 Object.freeze(MigrationEnum);
 
-var MAX_POP = 10000;
-Object.freeze(MAX_POP);
+var color_max = 10000;
+// Object.freeze(MAX_POP);
 
 // json data
 var migration_data = [], region_data = [];
 
 // var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
-var colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#42C0FB']);
+var colors = d3.scale.linear().domain([0, color_max]).range(['Gainsboro', '#42C0FB']);
 
 var slider = document.getElementById("slider");
 var curryear = document.getElementById("curryear");
@@ -154,6 +154,13 @@ function getArcs(source, migration_method) {
     return;
   }
 
+  // color_max = 0;
+  // for (var i=0; i<mig_data.length; i++) {
+  //   color_max = mig_data[i].population_post_1980[slider.value - 1980] > color_max ? 
+  //     mig_data[i].population_post_1980[slider.value - 1980] : color_max;
+  //   colors = d3.scale.linear().domain([0, color_max]).range(['Gainsboro', '#42C0FB']);
+  // }
+
 
   for (var i=0; i<mig_data.length; i++) {
     var point = {};
@@ -254,7 +261,7 @@ function updateInfoHeader(source, migration_method) {
     }
     total += mig_data[i].population_post_1980[current_year - 1980];
   }
-  console.log('test');
+  // console.log('test');
   var info_string;
   if (!mig_data || mig_data.length == 0) {
     info_string = 'No ' + (
@@ -287,6 +294,7 @@ function resetColor() {
 
 function renderMap() {
   // d3.select("#world").html('');
+  renderLanding();
   new Datamap();
   colorMap(current_country,  slider.value, current_mig_method);
   updateInfoHeader(current_country, current_mig_method);
@@ -323,6 +331,8 @@ $("#world").mouseup(function() {
   $("#world").addClass("grabbable");
 });
 
+$()
+
 
 function rerender() {
   // console.log('rerendering arcs')
@@ -351,9 +361,20 @@ $('#combobox').change(function() {
 });
 
 
+$("#unhide-viz").click(function() {
+  renderViz();
+  console.log('test');
+});
 
 
+function renderLanding() {
+  // $("#visualization-page").addClass("hidden");
+}
 
+function renderViz() {
+  $("#visualization-page").removeClass("hidden");
+  $("#landing-page").addClass("hidden");
+}
 
 
 
