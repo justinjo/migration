@@ -6,11 +6,13 @@
 
   <link rel="stylesheet" type="text/css" href="./css/style.css">
   
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-  <script src="./js/d3.v3.min.js"></script>
-  <script src="./js/topojson.min.js"></script>
-  <script src="./js/datamaps.world.hires.min.js"></script>
+  <script src="./js/src/jquery.min.js"></script>
+  <script src="./js/src/d3.v3.min.js"></script>
+  <script src="./js/src/topojson.min.js"></script>
+  <script src="./js/src/datamaps.world.min.js"></script>
+
+  <script src="./js/data.js"></script>
+  <script src="./js/datamap-zoom.js"></script>
 </head>
 <body>
   <div id="landing-page">
@@ -32,14 +34,10 @@
     <h3 id="selected-info">
       Select a country to view its migration information.
     </h3>
-    <!-- <div id="map" style="position: relative; width: 80%; max-height: 800px;"></div> -->
    
-    <div id="worldwrapper">
-      <div id="world" class="grabbable" style="position: relative; height: 600px; width: 800px;"></div>
-    </div>
+    <div id="world" class="grabbable resizable"></div>
 
-
-    <div id="button-bar">
+    <div id="button-bar" class="resizable">
       <button class="zoom-button" data-zoom="reset" id="reset">Reset</button>
       <button class="zoom-button" data-zoom="out">-</button>
       <button class="zoom-button" data-zoom="in">+</button>
@@ -51,13 +49,10 @@
 
     <br>
 
-    <div>
-      <input type="range" min="1980" max="2013" value="1980" id="slider">
+    <div id="year-bar">
+      <input type="range" min="1980" max="2013" value="1980" id="slider" class="resizable">
       <p>Current Year: <span id="curryear"></span></p>
     </div>
-
-
-    <br><br>
    
     <script src="./js/map.js"></script> 
   </div>

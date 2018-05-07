@@ -9,6 +9,14 @@ body {
   border: 2px solid silver;
   border-radius: 20px;
   background: white;
+  height: 600px;
+}
+
+.resizable {
+  position: relative;
+  width: 80%;
+  max-width: 800px;
+  min-width: 600px;
 }
 
 .grabbable {
@@ -33,7 +41,6 @@ body {
 
 #slider {
     -webkit-appearance: none;
-    width: 800px;
     height: 15px;
     border-radius: 5px;
     background: #d3d3d3;
@@ -195,6 +202,7 @@ body {
   height:100%;
   background-color: white;
   text-align: center;
+  z-index: 1;
 }
 
 .landing-info {
@@ -214,3 +222,5 @@ body {
 .hidden {
   visibility: hidden;
 }
+
+/* overflow-y: auto; for scroll */
