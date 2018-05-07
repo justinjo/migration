@@ -214,6 +214,11 @@ body {
 }
 
 #unhide-viz {
+  border-radius: 4px;
+  border: none;
+  background: silver;
+  font-size: 16px;
+  color: white;
   height: 30px;
   width: 200px;
   margin: 0 auto;
