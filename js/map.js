@@ -191,7 +191,7 @@ function renderMap() {
 function generateSelectors() {
   for (var i=0; i<migration_data.length; i++) {
     $('#combobox').append(
-      '<option value="' + migration_data[i].ISOa3 + '">' + 
+      '<option value="' + migration_data[i].ISOa3 + '" style="color:black;">' + 
       migration_data[i].country_name + '</option>'
     );
   }
