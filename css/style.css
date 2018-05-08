@@ -1,7 +1,6 @@
 body {
   font-family: helvetica;
   color: #444;
-  height: 100%;
 }
 
 #world {
@@ -10,7 +9,7 @@ body {
   border: 2px solid silver;
   border-radius: 20px;
   background: white;
-  height: 600px;
+  height: 80%;
 }
 
 .resizable {
@@ -31,7 +30,6 @@ body {
 }
 
 .datamap .datamaps-hoverover{
-  height: 50%;
 }
 
 
