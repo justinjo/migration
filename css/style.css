@@ -206,11 +206,20 @@ body {
 }
 
 .landing-info {
-  height: 10em;
+  height: 5em;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
+}
+
+#landing-header {
+  margin-bottom: 0;
+  height: 40px;
+  margin-top: 100px;
+}
+
+#landing-names {
+  margin-top: 0;
 }
 
 #unhide-viz {
@@ -221,7 +230,7 @@ body {
   color: white;
   height: 30px;
   width: 200px;
-  margin: 0 auto;
+  margin: 40px auto;
   cursor: pointer;
 }
 
