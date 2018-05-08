@@ -12,14 +12,14 @@ var migration_data = [], region_data = [],
 /*  -------- Data Loading Functions -------- */
 $.getJSON('./data/migration.json', function(data) {
   migration_data = data;
-  console.log('Loaded migration data.');
-  mig_loaded = true;
   Object.freeze(migration_data);
+  mig_loaded = true;
+  console.log('Loaded migration data.');
 });
 
 $.getJSON('./data/regions.json', function(data) {
   region_data = data;
-  console.log('Loaded region data.');
-  reg_loaded = true;
   Object.freeze(region_data);
+  reg_loaded = true;
+  console.log('Loaded region data.');
 });

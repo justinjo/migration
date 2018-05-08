@@ -1,5 +1,5 @@
 /* -------- VARIABLES -------- */
-var map;
+var worldmap;
 
 /* ---- Datamap Zoom Functions ---- */
 
@@ -197,7 +197,6 @@ function Datamap() {
 
   this.instance = new Datamaps({
     scope: 'world',
-    // responsive: true,
     element: document.getElementById('world'),
     projection: 'mercator',
     done: this._handleMapReady.bind(this),
@@ -221,7 +220,7 @@ function Datamap() {
     },
   });
 
-  map = this.instance;
+  worldmap = this.instance;
 }
 
 Datamap.prototype._handleMapReady = function(datamap) {

@@ -1,18 +1,17 @@
 /* -------- VARIABLES -------- */
 var MAX_POP = 10000;
 var color_max = 10000;
-// Object.freeze(MAX_POP);
+Object.freeze(MAX_POP);
 
-// var colors = d3.scale.log().base(Math.E).domain([0, 30]).range(['white', 'grey']);
 var colors = d3.scale.linear().domain([0, color_max]).range(['Gainsboro', '#42C0FB']);
 
-var slider = document.getElementById("slider");
-var curryear = document.getElementById("curryear");
-curryear.innerHTML = slider.value; // Display the default slider value
+var slider = document.getElementById("slider"),
+    curryear = document.getElementById("curryear");
 
-var current_country = 'DEU';
-var current_year = slider.value;
-var current_mig_method = MigrationEnum.immigration;
+// default selected values
+var current_country = 'DEU',
+    current_year = slider.value,
+    current_mig_method = MigrationEnum.immigration;
 
 
 /* -------- FUNCTIONS -------- */
@@ -26,6 +25,7 @@ function getISOOfCountry(country) {
     }
   }
   console.log('Could not get ISO of ' + country);
+  return null;
 }
 
 function getCountryName(iso) {
@@ -34,10 +34,11 @@ function getCountryName(iso) {
       return region_data[i].country_name;
     }
   }
-  console.log('Could not get ISO of ' + country); 
+  console.log('Could not get ISO of ' + country);
+  return null;
 }
 
-function getCoords(iso) {
+function getCountryCoords(iso) {
   for (var i=0; i<region_data.length; i++) {
     if (region_data[i].ISOa3 == iso) {
       return {
@@ -46,6 +47,7 @@ function getCoords(iso) {
       }
     }
   }
+  console.log('Could not get coordinates of ' + country);
   return null;
 }
 
@@ -58,41 +60,67 @@ function getMigrationEntry(iso) {
       return migration_data[i];
     }
   }
+  // console.log('Could not get migration data of ' + getCountryName(iso));
   return null;
 }
 
 function getImmigrationData(iso) {
   var entry = getMigrationEntry(iso);
-  return entry && entry.immigration.length ? entry.immigration : null;
+  return (entry && entry.immigration.length > 0) ? entry.immigration : null;
 }
 
 function getEmigrationData(iso) {
   var entry = getMigrationEntry(iso);
-  return entry && entry.emigration.length ? entry.emigration : null;
+  return (entry && entry.emigration.length > 0) ? entry.emigration : null;
+}
+
+function getMigrationData(iso, migration_method) {
+  if (migration_method == MigrationEnum.immigration) {
+    return getImmigrationData(iso);
+  } else if (migration_method == MigrationEnum.emigration) {
+    return getEmigrationData(iso);
+  }
+  return null;
 }
 
 function countryInMigData(iso) {
-  return Boolean(getMigrationEntry(iso));
+  var entry = getMigrationEntry(iso);
+  return (entry && (entry.immigration.length > 0 || entry.emigration.length > 0));
 }
 
-function getMigNumbers(iso, year, migration_method) {
-  var mig_data, population = 0;
+function getMigrationNumbers(iso, year, migration_method) {
+  var mig_data = getMigrationData(iso, migration_method);
 
-  if (migration_method == MigrationEnum.immigration) {
-    mig_data = getImmigrationData(current_country);
-  } else if (migration_method == MigrationEnum.emigration) {
-    mig_data = getEmigrationData(current_country);
-  }
-
-  if (!mig_data || mig_data.length == 0) {
+  if (!mig_data) {
     return 0;
   }
+
   for (var i=0; i<mig_data.length; i++) {
     if (mig_data[i].ISOa3 == iso) {
-      return mig_data[i].population_post_1980[current_year - 1980];
+      return mig_data[i].population_post_1980[year - 1980];
     }
   }
+
   return 0;
+}
+
+function getSortedMigrationData(iso, year, migration_method) {
+  var mig_data = getMigrationData(iso, migration_method),
+      parsed_data = [];
+
+  if (!mig_data) {
+    return parsed_data;
+  }
+
+  for (var i=0; i<mig_data.length; i++) {
+    if (mig_data[i].population_post_1980[year - 1980] > 0) {
+      parsed_data.push([mig_data[i].ISOa3, mig_data[i].population_post_1980[year - 1980]]);
+    }
+  }
+
+  return parsed_data.sort(function(a,b) {
+    return a[1] - b[1];
+  }).reverse();
 }
 
 
@@ -154,6 +182,7 @@ function renderMap() {
   renderArcs(current_country, current_mig_method);
   colorMap(current_country,  slider.value, current_mig_method);
   updateInfoHeader(current_country, current_mig_method);
+  curryear.innerHTML = slider.value; // Display the default slider value
 }
 
 function generateSelectors() {
@@ -168,7 +197,7 @@ function generateSelectors() {
 
 /* -------- Arc Functions -------- */
 function renderArcs(source, migration_method) {
-  var dest_coords, source_coords = getCoords(source),
+  var dest_coords, source_coords = getCountryCoords(source),
       mig_data,
       arcs = [];
 
@@ -192,7 +221,7 @@ function renderArcs(source, migration_method) {
   }
 
   for (var i=0; i<mig_data.length; i++) {
-    dest_coords = getCoords(mig_data[i].ISOa3);
+    dest_coords = getCountryCoords(mig_data[i].ISOa3);
     if (!dest_coords) {
       console.log('Failed to get coords for ' + mig_data[i].ISOa3);
       continue;
@@ -209,7 +238,7 @@ function renderArcs(source, migration_method) {
       arcs.push(genArc(source_coords, dest_coords));
     }
   }
-  map.arc(arcs);
+  worldmap.arc(arcs);
 }
 
 function genArc(origin_coords, destination_coords) {
@@ -267,24 +296,21 @@ function resetColor() {
 function updateCountryColor(iso, population) {
   var data = {}
   data[iso] = colors(parseInt(population));
-  map.updateChoropleth(data);
+  worldmap.updateChoropleth(data);
 }
 
 function scaleColor() {
-  // TODO: do color thresholding here
-  // color_max = 0;
-  // for (var i=0; i<mig_data.length; i++) {
-  //   color_max = mig_data[i].population_post_1980[slider.value - 1980] > color_max ? 
-  //     mig_data[i].population_post_1980[slider.value - 1980] : color_max;
-  //   colors = d3.scale.linear().domain([0, color_max]).range(['Gainsboro', '#42C0FB']);
-  // }
+  var pop_data = getSortedMigrationData(current_country, current_year, current_mig_method);
+  color_max = pop_data.length > 0 ? pop_data[0][1] : 0;
+  updateColor(color_max/8);
 }
 
-function updateColor() {
+function updateColor(new_max) {
+  new_max = new_max > 0 ? new_max : MAX_POP;
   if (current_mig_method == MigrationEnum.emigration) {
-    colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#4CD964']);
+    colors = d3.scale.linear().domain([0, new_max]).range(['Gainsboro', '#4CD964']);
   } else {
-    colors = d3.scale.linear().domain([0, MAX_POP]).range(['Gainsboro', '#42C0FB']);
+    colors = d3.scale.linear().domain([0, new_max]).range(['Gainsboro', '#42C0FB']);
   }
 }
 
@@ -292,7 +318,6 @@ function updateColor() {
 function updateInfoHeader(source, migration_method) {
   var country_name = getCountryName(source);
   var total = 0;
-
   var mig_data;
 
   if (migration_method == MigrationEnum.immigration) {
@@ -307,7 +332,7 @@ function updateInfoHeader(source, migration_method) {
     }
     total += mig_data[i].population_post_1980[current_year - 1980];
   }
-  // console.log('test');
+
   var info_string;
   if (!mig_data || mig_data.length == 0 || total == 0) {
     info_string = 'No ' + (
@@ -331,11 +356,12 @@ function rerender() {
   renderArcs(current_country, current_mig_method);
   colorMap(current_country, slider.value, current_mig_method);
   updateInfoHeader(current_country, current_mig_method);
+  // console.log(getSortedMigrationData(current_country, current_year, current_mig_method));
 }
 
 // show migration information in tooltip
 function genPopupTemplate(geo, data) {
-  var population = getMigNumbers(geo.id, current_year, current_mig_method),
+  var population = getMigrationNumbers(geo.id, current_year, current_mig_method),
     div_open = '<div style="opacity:1;width:100px;" class="hoverinfo">',
     div_close = '</div>',
     content;

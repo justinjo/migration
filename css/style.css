@@ -162,8 +162,8 @@ body {
 #combobox {
   -webkit-appearance: none;
   font-size: 16px;
-  color:white;
-
+  color: white;
+  cursor: pointer;
 }
 
 .select-style {
@@ -222,6 +222,7 @@ body {
   height: 30px;
   width: 200px;
   margin: 0 auto;
+  cursor: pointer;
 }
 
 .hidden {
