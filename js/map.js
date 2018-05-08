@@ -68,12 +68,12 @@ function getMigrationEntry(iso) {
 
 function getImmigrationData(iso) {
   var entry = getMigrationEntry(iso);
-  return (entry && entry.immigration.length > 0) ? entry.immigration : null;
+  return (entry) ? entry.immigration : [];
 }
 
 function getEmigrationData(iso) {
   var entry = getMigrationEntry(iso);
-  return (entry && entry.emigration.length > 0) ? entry.emigration : null;
+  return (entry) ? entry.emigration : [];
 }
 
 function getMigrationData(iso, migration_method) {
@@ -84,11 +84,6 @@ function getMigrationData(iso, migration_method) {
   }
   return [];
 }
-
-// function countryInMigData(iso) {
-//   var entry = getMigrationEntry(iso);
-//   return (entry && (entry.immigration.length > 0 || entry.emigration.length > 0));
-// }
 
 function getMigrationNumbersByISO(source, destination, year, migration_method) {
   var mig_data = getMigrationData(source, migration_method);
@@ -187,7 +182,7 @@ function renderVisualization() {
 
 function renderMap() {
   worldmap = new Datamap();
-  renderArcs(current_country, current_mig_method);
+  renderArcs(current_country, current_year, current_mig_method);
   colorMap(current_country,  slider.value, current_mig_method);
   updateInfoHeader(current_country, current_year, current_mig_method);
   curryear.innerHTML = slider.value; // Display the default slider value
@@ -204,9 +199,10 @@ function generateSelectors() {
 }
 
 /* -------- Arc Functions -------- */
-function renderArcs(source, migration_method) {
+function renderArcs(source, year, migration_method) {
   var dest_coords, source_coords = getCountryCoords(source),
       mig_data = getMigrationData(source, migration_method),
+      pop_data = getSortedMigrationData(source, year, migration_method),
       arcs = [];
 
   if (!source_coords) {
@@ -215,6 +211,7 @@ function renderArcs(source, migration_method) {
   }
 
   for (var i=0; i<mig_data.length; i++) {
+    var should_render = false;
     dest_coords = getCountryCoords(mig_data[i].ISOa3);
     if (!dest_coords) {
       console.log('Failed to get coords for ' + mig_data[i].ISOa3);
@@ -222,7 +219,13 @@ function renderArcs(source, migration_method) {
     }
 
     // TODO: put in arc thresholding here
-    if (mig_data[i].population_post_1980[slider.value - 1980] < 5000) {
+    for (var j=0; j<10 && j<pop_data.length; j++) {
+      if (pop_data[j][0] == mig_data[i].ISOa3) {
+        should_render = true;
+      }
+    }
+
+    if (!should_render) {
       continue;
     }
 
@@ -300,7 +303,7 @@ function updateColor(new_max, migration_method) {
 /* -------- Content Functions ------- */
 function updateInfoHeader(source, year, migration_method) {
   var country_name = getCountryName(source),
-      total = getMigrationNumbersTotal(source, year, migration_method)
+      total = getMigrationNumbersTotal(source, year, migration_method);
 
   var info_string;
   if (total > 0) {
@@ -322,7 +325,7 @@ function setMigrationMethod(is_emigration) {
 }
 
 function rerender() {
-  renderArcs(current_country, current_mig_method);
+  renderArcs(current_country, current_year, current_mig_method);
   colorMap(current_country, slider.value, current_mig_method);
   updateInfoHeader(current_country, current_year, current_mig_method);
 }
