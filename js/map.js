@@ -8,6 +8,8 @@ var colors = d3.scale.linear().domain([0, color_max]).range(['Gainsboro', '#42C0
 var slider = document.getElementById("slider"),
     curryear = document.getElementById("curryear");
 
+var worldmap;
+
 // default selected values
 var current_country = 'DEU',
     current_year = slider.value,
@@ -61,7 +63,7 @@ function getMigrationEntry(iso) {
     }
   }
   // console.log('Could not get migration data of ' + getCountryName(iso));
-  return null;
+  return [];
 }
 
 function getImmigrationData(iso) {
@@ -80,23 +82,19 @@ function getMigrationData(iso, migration_method) {
   } else if (migration_method == MigrationEnum.emigration) {
     return getEmigrationData(iso);
   }
-  return null;
+  return [];
 }
 
-function countryInMigData(iso) {
-  var entry = getMigrationEntry(iso);
-  return (entry && (entry.immigration.length > 0 || entry.emigration.length > 0));
-}
+// function countryInMigData(iso) {
+//   var entry = getMigrationEntry(iso);
+//   return (entry && (entry.immigration.length > 0 || entry.emigration.length > 0));
+// }
 
-function getMigrationNumbers(iso, year, migration_method) {
-  var mig_data = getMigrationData(iso, migration_method);
-
-  if (!mig_data) {
-    return 0;
-  }
+function getMigrationNumbersByISO(source, destination, year, migration_method) {
+  var mig_data = getMigrationData(source, migration_method);
 
   for (var i=0; i<mig_data.length; i++) {
-    if (mig_data[i].ISOa3 == iso) {
+    if (mig_data[i].ISOa3 == destination) {
       return mig_data[i].population_post_1980[year - 1980];
     }
   }
@@ -104,13 +102,22 @@ function getMigrationNumbers(iso, year, migration_method) {
   return 0;
 }
 
+function getMigrationNumbersTotal(iso, year, migration_method) {
+  var total = 0,
+      mig_data = getMigrationData(iso, migration_method);
+  
+  for (var i=0; i<mig_data.length; i++) {
+    if (mig_data[i].country_name == 'Total') {
+      continue;
+    }
+    total += mig_data[i].population_post_1980[year - 1980];
+  }
+  return total;
+}
+
 function getSortedMigrationData(iso, year, migration_method) {
   var mig_data = getMigrationData(iso, migration_method),
       parsed_data = [];
-
-  if (!mig_data) {
-    return parsed_data;
-  }
 
   for (var i=0; i<mig_data.length; i++) {
     if (mig_data[i].population_post_1980[year - 1980] > 0) {
@@ -126,11 +133,11 @@ function getSortedMigrationData(iso, year, migration_method) {
 
 /* ---- Rendering Functions ---- */
 
-$("#unhide-viz").click(renderViz);
+$("#unhide-viz").click(renderVisualization);
 
 $('.toggle').click(function() {
   setMigrationMethod(this.checked);
-  updateColor();
+  // updateColor(); TODO : check that this doesn't do anything
   rerender();
 });
 
@@ -162,7 +169,7 @@ $('#combobox').change(function() {
 
 
 
-function renderViz() {
+function renderVisualization() {
   if (!(mig_loaded && reg_loaded)) {
     return; // data needs to be loaded before map can be rendered
   }
@@ -170,6 +177,7 @@ function renderViz() {
   generateSelectors()
 
   console.log('Revealing visualization-page');
+
   $("#landing-page").animate({
     top: '-150%',
     easing:"linear",
@@ -178,10 +186,10 @@ function renderViz() {
 }
 
 function renderMap() {
-  new Datamap();
+  worldmap = new Datamap();
   renderArcs(current_country, current_mig_method);
   colorMap(current_country,  slider.value, current_mig_method);
-  updateInfoHeader(current_country, current_mig_method);
+  updateInfoHeader(current_country, current_year, current_mig_method);
   curryear.innerHTML = slider.value; // Display the default slider value
 }
 
@@ -198,25 +206,11 @@ function generateSelectors() {
 /* -------- Arc Functions -------- */
 function renderArcs(source, migration_method) {
   var dest_coords, source_coords = getCountryCoords(source),
-      mig_data,
+      mig_data = getMigrationData(source, migration_method),
       arcs = [];
 
   if (!source_coords) {
     console.log('Error: ' + source + ' does not have coordinates');
-    return;
-  } else if (!countryInMigData(source)) {
-    console.log('Error: ' + source + ' not found in migration dataset');
-    return;
-  }
-
-  if (migration_method == MigrationEnum.immigration) {
-    mig_data = getImmigrationData(source);
-  } else if (migration_method == MigrationEnum.emigration) {
-    mig_data = getEmigrationData(source);
-  }
-
-  if (!mig_data) {
-    console.log('No migration data found for ' + source);
     return;
   }
 
@@ -259,22 +253,11 @@ function genArc(origin_coords, destination_coords) {
 
 /* -------- Color Functions -------- */
 function colorMap(source, year, migration_method) {
-  var mig_data;
+  var mig_data = getMigrationData(source, migration_method);
 
   resetColor();
   
-  if (!countryInMigData(source)) {
-    console.log('Error: ' + source + ' not found in migration dataset');
-    return;
-  }
-
-  if (migration_method == MigrationEnum.immigration) {
-    mig_data = getImmigrationData(source);
-  } else if (migration_method == MigrationEnum.emigration) {
-    mig_data = getEmigrationData(source);
-  }
-
-  if (!mig_data) {
+  if (mig_data.length == 0) {
     console.log('No migration data found for ' + source);
     return;
   }
@@ -302,12 +285,12 @@ function updateCountryColor(iso, population) {
 function scaleColor() {
   var pop_data = getSortedMigrationData(current_country, current_year, current_mig_method);
   color_max = pop_data.length > 0 ? pop_data[0][1] : 0;
-  updateColor(color_max/8);
+  updateColor(color_max/8, current_mig_method);
 }
 
-function updateColor(new_max) {
+function updateColor(new_max, migration_method) {
   new_max = new_max > 0 ? new_max : MAX_POP;
-  if (current_mig_method == MigrationEnum.emigration) {
+  if (migration_method == MigrationEnum.emigration) {
     colors = d3.scale.linear().domain([0, new_max]).range(['Gainsboro', '#4CD964']);
   } else {
     colors = d3.scale.linear().domain([0, new_max]).range(['Gainsboro', '#42C0FB']);
@@ -315,35 +298,21 @@ function updateColor(new_max) {
 }
 
 /* -------- Content Functions ------- */
-function updateInfoHeader(source, migration_method) {
-  var country_name = getCountryName(source);
-  var total = 0;
-  var mig_data;
-
-  if (migration_method == MigrationEnum.immigration) {
-    mig_data = getImmigrationData(source);
-  } else if (migration_method == MigrationEnum.emigration) {
-    mig_data = getEmigrationData(source);
-  }
-
-  for (var i=0; i<mig_data.length; i++) {
-    if (mig_data[i].country_name == 'Total') {
-      continue;
-    }
-    total += mig_data[i].population_post_1980[current_year - 1980];
-  }
+function updateInfoHeader(source, year, migration_method) {
+  var country_name = getCountryName(source),
+      total = getMigrationNumbersTotal(source, year, migration_method)
 
   var info_string;
-  if (!mig_data || mig_data.length == 0 || total == 0) {
+  if (total > 0) {
+    info_string = total.toLocaleString() + ' people ' + (
+      migration_method == MigrationEnum.immigration ?
+      'immigrated to ' : 'emigrated from '
+    ) + country_name + ' in ' + year + '.';
+  } else {
     info_string = 'No ' + (
       migration_method == MigrationEnum.immigration ?
       'immigration' : 'emigration'
-    ) + ' data found for ' + country_name + ' in ' + current_year + '.';
-  } else {
-    info_string = total.toLocaleString() + ' people ' + (
-        migration_method == MigrationEnum.immigration ?
-        'immigrated to ' : 'emigrated from '
-      ) + country_name + ' in ' + current_year + '.';
+    ) + ' data found for ' + country_name + ' in ' + year + '.';
   }
   d3.select('#selected-info').html(info_string);
 }
@@ -355,16 +324,20 @@ function setMigrationMethod(is_emigration) {
 function rerender() {
   renderArcs(current_country, current_mig_method);
   colorMap(current_country, slider.value, current_mig_method);
-  updateInfoHeader(current_country, current_mig_method);
-  // console.log(getSortedMigrationData(current_country, current_year, current_mig_method));
+  updateInfoHeader(current_country, current_year, current_mig_method);
 }
 
 // show migration information in tooltip
 function genPopupTemplate(geo, data) {
-  var population = getMigrationNumbers(geo.id, current_year, current_mig_method),
-    div_open = '<div style="opacity:1;width:100px;" class="hoverinfo">',
-    div_close = '</div>',
-    content;
+  var population = getMigrationNumbersByISO(
+    current_country,
+    geo.id,
+    current_year,
+    current_mig_method
+  );
+  var div_open = '<div style="opacity:1;width:100px;" class="hoverinfo">',
+      div_close = '</div>',
+      content;
 
   if (population > 0) {
     content = population.toLocaleString() + 

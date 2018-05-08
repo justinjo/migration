@@ -1,6 +1,3 @@
-/* -------- VARIABLES -------- */
-var worldmap;
-
 /* ---- Datamap Zoom Functions ---- */
 
 function Zoom(args) {
@@ -220,7 +217,7 @@ function Datamap() {
     },
   });
 
-  worldmap = this.instance;
+  return this.instance;
 }
 
 Datamap.prototype._handleMapReady = function(datamap) {
